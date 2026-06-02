@@ -60,11 +60,14 @@ Both columns flex to equal height so their bottoms align; panels with fewer cont
 (INPUT, DRIVE) keep the extra space as breathing room rather than enlarging knobs.
 
 ### Base size & resizing
-- **Base size: 960 × 640 px (3:2).** This is the design size and the default open size.
+- **Base size: 1020 × 680 px (3:2).** This is the design size and the default open
+  size. (Chosen over 960×640 so six fixed-width 56px knob cells — EQ and COMPRESSOR
+  each need six per row — fit with clean uniform gutters; the mockup only fit at 960
+  because its cells were flexible.)
 - Aspect ratio locked to 3:2 via the editor constrainer; window scales uniformly
   (single `AffineTransform::scale`), exactly as the current editor already does.
-- **Resize limits:** min 0.7× (672 × 448), max 1.6× (1536 × 1024).
-- **Default/persisted size:** a fresh instance opens at 960 × 640. Persisted UI size
+- **Resize limits:** min 0.7× (714 × 476), max 1.6× (1632 × 1088).
+- **Default/persisted size:** a fresh instance opens at 1020 × 680. Persisted UI size
   continues to load, but the stored default is updated to the new base so existing
   "too small" defaults no longer apply.
 - **Initial-size ordering:** in the editor constructor, read the persisted size and
@@ -118,7 +121,7 @@ underlying APVTS attachments are unchanged.
 
 ## 5. Affected files
 
-- `Source/PluginEditor.{h,cpp}` — new base size (960×640), region layout (left col /
+- `Source/PluginEditor.{h,cpp}` — new base size (1020×680), region layout (left col /
   bridge / right col), resize limits, default-size handling.
 - `Source/ui/HoldoverLookAndFeel.{h,cpp}` — larger rotary; new `drawToggleButton`
   paths for pill-switch vs LED-button styles (distinguished by a button property/flag).
@@ -138,7 +141,7 @@ default UI-size constants.
 ## 6. Testing / verification
 
 - Existing unit + pluginval tests must continue to pass unchanged (UI-only change).
-- Manual verification: build, open in a host, confirm (a) opens at 960×640, (b) drags
+- Manual verification: build, open in a host, confirm (a) opens at 1020×680, (b) drags
   resize uniformly with no stretching, (c) switches and LED buttons toggle their
   bound parameters, (d) meters animate. Capture a screenshot for sign-off.
 
