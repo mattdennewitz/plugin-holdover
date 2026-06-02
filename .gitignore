@@ -1,2 +1,6 @@
 .superpowers/
 .claude/
+build/
+cmake-build-*/
+pluginval.zip
+pluginval.app/
