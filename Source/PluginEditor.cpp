@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <cmath>
 
 namespace holdover {
 
@@ -61,9 +62,13 @@ HoldoverEditor::HoldoverEditor(HoldoverProcessor& p)
     addAndMakeVisible(content_);
 
     setResizable(true, true);
-    // Constrain to the natural aspect ratio so uniform scaling never distorts.
+    // Lock to the base aspect ratio so uniform scaling never distorts.
     getConstrainer()->setFixedAspectRatio((double) kBaseWidth / (double) kBaseHeight);
-    setResizeLimits(kBaseWidth / 2, kBaseHeight / 2, kBaseWidth * 2, kBaseHeight * 2);
+    setResizeLimits((int) std::round(kBaseWidth * 0.7), (int) std::round(kBaseHeight * 0.7),
+                    (int) std::round(kBaseWidth * 1.6), (int) std::round(kBaseHeight * 1.6));
+
+    // Apply the persisted size after the constrainer is fully configured, so restored
+    // sizes are clamped correctly and fresh instances open at the base size.
     setSize(processor.uiWidth, processor.uiHeight);
     startTimerHz(30);
 }

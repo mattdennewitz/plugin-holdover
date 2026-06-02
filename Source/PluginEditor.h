@@ -22,8 +22,8 @@ public:
 
     // Natural design size. The whole UI is laid out once at these dimensions and
     // scaled uniformly to the window, so no control ever squishes or stretches.
-    static constexpr int kBaseWidth  = 900;
-    static constexpr int kBaseHeight = 700;
+    static constexpr int kBaseWidth  = 1020;
+    static constexpr int kBaseHeight = 680;
 
 private:
     void timerCallback() override;

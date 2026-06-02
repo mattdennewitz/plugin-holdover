@@ -36,7 +36,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    int uiWidth = 900, uiHeight = 700;
+    int uiWidth = 1020, uiHeight = 680;
 
     const MeterState& getMeters() const noexcept { return strip_.meters(); }
 
