@@ -12,7 +12,9 @@ public:
         input_.attach(*this, s, "input", "Input");
     }
     void resized() override {
-        auto c = columns(contentArea(), 3);
+        auto a = contentArea();
+        auto row = a.removeFromTop(ui::kCellH);
+        auto c = ui::cells(row, 3);
         gainL_.layout(c[0]); gainR_.layout(c[1]); input_.layout(c[2]);
     }
 private:

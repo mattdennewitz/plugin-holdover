@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "ui/HoldoverLookAndFeel.h"
 #include "ui/LedMeter.h"
+#include "ui/Layout.h"
 #include "ui/panels/InputPanel.h"
 #include "ui/panels/FilterPanel.h"
 #include "ui/panels/EqPanel.h"
@@ -22,8 +23,8 @@ public:
 
     // Natural design size. The whole UI is laid out once at these dimensions and
     // scaled uniformly to the window, so no control ever squishes or stretches.
-    static constexpr int kBaseWidth  = 900;
-    static constexpr int kBaseHeight = 700;
+    static constexpr int kBaseWidth  = 1020;
+    static constexpr int kBaseHeight = 680;
 
 private:
     void timerCallback() override;
@@ -33,6 +34,7 @@ private:
     class Content : public juce::Component {
     public:
         explicit Content(juce::AudioProcessorValueTreeState&);
+        void paint(juce::Graphics&) override;
         void resized() override;
         void updateMeters(float saturation, float gainReductionDb);
 
@@ -47,6 +49,9 @@ private:
         LedMeter satMeter_ { "SATURATING" };
         LedMeter grMeter_  { "COMPRESSING" };
         juce::Label grReadout_;
+
+        // Set in resized(), consumed in paint(); both are 0x0 until the first resized().
+        juce::Rectangle<int> headerArea_, bridgeArea_;
     };
 
     HoldoverProcessor& processor;
