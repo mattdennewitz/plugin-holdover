@@ -1,0 +1,13 @@
+CPMAddPackage(
+    NAME Catch2
+    GITHUB_REPOSITORY catchorg/Catch2
+    GIT_TAG v3.5.2)
+
+add_executable(HoldoverTests
+    test_main.cpp)
+
+target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
+target_compile_features(HoldoverTests PRIVATE cxx_std_20)
+
+include(${Catch2_SOURCE_DIR}/extras/Catch.cmake)
+catch_discover_tests(HoldoverTests)
