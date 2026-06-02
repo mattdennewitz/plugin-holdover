@@ -4,7 +4,8 @@ CPMAddPackage(
     GIT_TAG v3.5.2)
 
 add_executable(HoldoverTests
-    test_main.cpp)
+    test_main.cpp
+    test_scales.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
 target_compile_features(HoldoverTests PRIVATE cxx_std_20)
