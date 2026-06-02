@@ -16,6 +16,7 @@ public:
     void setSat(bool on) noexcept;
     void setHex(bool on) noexcept;
     void setCurve(bool on) noexcept;
+    void setCharacter(float amount01, float chSign) noexcept; // Class-A bias; chSign = +1/-1 per channel
 
     float processSample(float x) noexcept;
 
@@ -38,6 +39,7 @@ private:
     double sr_ = 48000.0;
     float preGain_ = 1.0f, outComp_ = 1.0f;
     int mas_ = 0; bool sat_ = false, hex_ = false, curve_ = true;
+    float character_ = 0.0f, bias_ = 0.0f; // Class-A asymmetry; bias_ == 0 when character_ == 0
     Shelf pre_, de_;
     float dcX1_ = 0.0f, dcY1_ = 0.0f;
 };
