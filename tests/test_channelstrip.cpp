@@ -107,3 +107,26 @@ TEST_CASE("oversampling rejects aliasing under hard clipping", "[strip]") {
     auto binAt = [&](float hz){ return fftbuf[(int) std::round(hz / kSr * size)]; };
     REQUIRE(binAt(13000.0f) < binAt(7000.0f) * 0.05f);
 }
+
+TEST_CASE("EXT sidechain with no bus produces no compression", "[strip]") {
+    auto grForScSource = [](int scSource, bool provideSc) {
+        holdover::ChannelStrip s; s.prepare(kSr, kBlock, 2);
+        auto t = neutralTargets();
+        t.compEngage = true; t.thresholdDb = -30.0f; t.behaviorPos = 8.0f;
+        t.scSource = scSource;
+        s.setTargets(t);
+        juce::AudioBuffer<float> main(2, kBlock), sc(2, kBlock);
+        float gr = 0.0f;
+        for (int b = 0; b < 40; ++b) {
+            for (int n = 0; n < kBlock; ++n) { main.setSample(0,n,0.5f); main.setSample(1,n,0.5f); }
+            sc.clear();                          // sidechain bus is silent
+            s.processBlock(main, provideSc ? &sc : nullptr);
+            gr = juce::jmax(gr, s.meters().gainReductionDb());
+        }
+        return gr;
+    };
+    // scSource 2 = POST (internal): loud signal -> compresses.
+    REQUIRE(grForScSource(2, false) > 1.0f);
+    // scSource 1 = EXT with a silent/absent bus: detector sees silence -> ~no GR.
+    REQUIRE(grForScSource(1, false) < 0.5f);
+}

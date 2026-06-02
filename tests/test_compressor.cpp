@@ -74,3 +74,23 @@ TEST_CASE("SC filter reduces reduction for low-frequency content", "[comp]") {
     };
     REQUIRE(grAt(50.0f, true) < grAt(50.0f, false));
 }
+
+TEST_CASE("RMS detection reads lower than peak for steady tone", "[comp]") {
+    // Peak level of a -6 dBFS sine is -6 dB; its RMS is ~-9 dB. With threshold at
+    // -7.5 dB, peak mode compresses but RMS mode (reading lower) does not.
+    auto grWithMode = [](bool rms) {
+        holdover::Compressor c; c.prepare(48000.0, 512);
+        c.setThreshold(-7.5f); c.setBehavior(6.0f); c.setMakeup(5.0f);
+        c.setTiming(0, 0); c.setRmsMode(rms); c.reset();
+        const float amp = juce::Decibels::decibelsToGain(-6.0f);
+        const double w = 2.0 * juce::MathConstants<double>::pi * 200.0 / 48000.0;
+        float gr = 0.0f;
+        for (int i = 0; i < 48000; ++i) {
+            float s = amp * (float) std::sin(w * i), l = s, r = s;
+            c.processStereo(l, r, s, s);
+            if (i > 24000) gr = juce::jmax(gr, c.getGainReductionDb());
+        }
+        return gr;
+    };
+    REQUIRE(grWithMode(false) > grWithMode(true) + 0.5f); // peak compresses more than RMS
+}
