@@ -53,8 +53,8 @@ Three regions side by side inside a 12px outer margin, 12px gutters:
 - **Center bridge** (96px wide, full body height): the two LED-ladder meters
   (SATURATING, COMPRESSING) side by side, with the numeric GR readout below.
 - **Right column** (dynamics / out): COMPRESSOR → DRIVE → MATRIX/OUTPUT, stacked.
-- **Header** (36px): `HOLDOVER` wordmark (with `OVER` in accent) left, `MODULAR
-  CHANNEL` tagline right. No functional controls — purely an alignment anchor.
+- **Header** (36px): `HOLDOVER` wordmark (with `OVER` in accent), left-aligned. No
+  tagline, no functional controls — purely an alignment anchor.
 
 Both columns flex to equal height so their bottoms align; panels with fewer controls
 (INPUT, DRIVE) keep the extra space as breathing room rather than enlarging knobs.
@@ -67,6 +67,12 @@ Both columns flex to equal height so their bottoms align; panels with fewer cont
 - **Default/persisted size:** a fresh instance opens at 960 × 640. Persisted UI size
   continues to load, but the stored default is updated to the new base so existing
   "too small" defaults no longer apply.
+- **Initial-size ordering:** in the editor constructor, read the persisted size and
+  call `setSize()` *before* the first layout pass, so the UI lays out once and opens
+  at full size rather than laying out at a stale default and then resizing.
+- **Resize write cost:** `resized()` fires continuously during a drag and writes the
+  current size back to the processor (`uiWidth`/`uiHeight`). Keep that write a plain
+  cheap assignment — no allocation, no notifications — so dragging stays smooth.
 
 ---
 
@@ -142,5 +148,3 @@ default UI-size constants.
 
 - Exact value-readout formatting per parameter (reuse current `Slider` text where it
   already reads well).
-- Whether the header tagline `MODULAR CHANNEL` stays or is dropped — cosmetic, decide
-  in implementation.
