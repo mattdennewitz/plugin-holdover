@@ -50,7 +50,8 @@ private:
         LedMeter grMeter_  { "COMPRESSING" };
         juce::Label grReadout_;
 
-        juce::Rectangle<int> headerArea_, bridgeArea_; // painted in paint()
+        // Set in resized(), consumed in paint(); both are 0x0 until the first resized().
+        juce::Rectangle<int> headerArea_, bridgeArea_;
     };
 
     HoldoverProcessor& processor;

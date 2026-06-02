@@ -24,9 +24,7 @@ void HoldoverEditor::Content::paint(juce::Graphics& g) {
     // Wordmark: "HOLD" in text, "OVER" in accent.
     juce::Font f(juce::FontOptions(19.0f, juce::Font::bold));
     g.setFont(f);
-    juce::GlyphArrangement ga;
-    ga.addLineOfText(f, "HOLD", 0.0f, 0.0f);
-    const float holdW = ga.getBoundingBox(0, -1, true).getWidth();
+    const float holdW = juce::GlyphArrangement::getStringWidth(f, "HOLD");
     auto h = headerArea_;
     g.setColour(juce::Colour(HoldoverLookAndFeel::kText));
     g.drawText("HOLD", h, juce::Justification::centredLeft);
@@ -100,14 +98,22 @@ HoldoverEditor::HoldoverEditor(HoldoverProcessor& p)
     // up to the minimum and fires resized() — and resized() writes getWidth()/Height()
     // back into processor.uiWidth/uiHeight. Reading those as setSize() arguments after
     // that point would always yield the minimum, losing the restored size.
-    const int restoreW = processor.uiWidth;
-    const int restoreH = processor.uiHeight;
+    const int minW = (int) std::round(kBaseWidth * 0.7);
+    const int maxW = (int) std::round(kBaseWidth * 1.6);
+    const int minH = (int) std::round(kBaseHeight * 0.7);
+    const int maxH = (int) std::round(kBaseHeight * 1.6);
+
+    // setSize() does NOT apply the constrainer, so a size loaded from an older session
+    // could be out of range or off-aspect. Clamp width into the limits and derive the
+    // height from the locked aspect ratio so the window never opens with a gap.
+    const double aspect = (double) kBaseWidth / (double) kBaseHeight;
+    const int restoreW = juce::jlimit(minW, maxW, processor.uiWidth);
+    const int restoreH = (int) std::round(restoreW / aspect);
 
     setResizable(true, true);
     // Lock to the base aspect ratio so uniform scaling never distorts.
-    getConstrainer()->setFixedAspectRatio((double) kBaseWidth / (double) kBaseHeight);
-    setResizeLimits((int) std::round(kBaseWidth * 0.7), (int) std::round(kBaseHeight * 0.7),
-                    (int) std::round(kBaseWidth * 1.6), (int) std::round(kBaseHeight * 1.6));
+    getConstrainer()->setFixedAspectRatio(aspect);
+    setResizeLimits(minW, minH, maxW, maxH);
 
     // Size from the snapshot; this final resized() restores processor.uiWidth/uiHeight.
     setSize(restoreW, restoreH);
