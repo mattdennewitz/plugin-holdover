@@ -95,15 +95,22 @@ HoldoverEditor::HoldoverEditor(HoldoverProcessor& p)
     setLookAndFeel(&lnf_);
     addAndMakeVisible(content_);
 
+    // Snapshot the persisted size BEFORE touching the constrainer: setResizeLimits()
+    // calls setBoundsConstrained(getBounds()) on the still-0x0 editor, which clamps it
+    // up to the minimum and fires resized() — and resized() writes getWidth()/Height()
+    // back into processor.uiWidth/uiHeight. Reading those as setSize() arguments after
+    // that point would always yield the minimum, losing the restored size.
+    const int restoreW = processor.uiWidth;
+    const int restoreH = processor.uiHeight;
+
     setResizable(true, true);
     // Lock to the base aspect ratio so uniform scaling never distorts.
     getConstrainer()->setFixedAspectRatio((double) kBaseWidth / (double) kBaseHeight);
     setResizeLimits((int) std::round(kBaseWidth * 0.7), (int) std::round(kBaseHeight * 0.7),
                     (int) std::round(kBaseWidth * 1.6), (int) std::round(kBaseHeight * 1.6));
 
-    // Apply the persisted size after the constrainer is fully configured, so restored
-    // sizes are clamped correctly and fresh instances open at the base size.
-    setSize(processor.uiWidth, processor.uiHeight);
+    // Size from the snapshot; this final resized() restores processor.uiWidth/uiHeight.
+    setSize(restoreW, restoreH);
     startTimerHz(30);
 }
 
