@@ -33,16 +33,18 @@ void FilterBlock::Svf::process(float x, float& lp, float& hp) noexcept {
     // amplitudes (avoids digital runaway while preserving resonant peaks).
     constexpr float kSatScale = 0.1f;
     const float ic1_sat = fastTanh(ic1 * kSatScale) / kSatScale;
+    // TPT SVF: the k*v1 damping is re-injected on the next iteration via the integrator states. The soft-clip below is applied to the ic1 feedback read only, intentionally before damping re-injection (this shapes the nonlinear character).
     const float v3 = x - ic2;
     const float v1 = a1 * ic1_sat + a2 * v3;
     const float v2 = ic2 + a2 * ic1_sat + a3 * v3;
     ic1 = 2.0f * v1 - ic1_sat;
-    ic2 = 2.0f * v2 - ic2;
+    ic2 = 2.0f * v2 - ic2; // ic2 (LP integrator) intentionally NOT saturated; only ic1 (BP integrator) gets the soft-clip.
     lp = v2;
     hp = x - k * v1 - v2;
 }
 
 void FilterBlock::prepare(double sampleRate) noexcept { sr_ = sampleRate; reset(); }
+// NOTE: ic1/ic2 can drift to denormals during free decay. A juce::ScopedNoDenormals at the processor level (processBlock) covers this; flush here if this filter is ever used outside that wrapper.
 void FilterBlock::reset() noexcept { hp_.reset(); lp_.reset(); }
 
 void FilterBlock::setHpf(float freqHz, float peak) noexcept {

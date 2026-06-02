@@ -38,7 +38,9 @@ inline std::vector<float> harmonicMagnitudes(Fn&& fn, double sampleRate,
     std::vector<float> buf(size * 2, 0.0f);
     juce::dsp::WindowingFunction<float> win(size, juce::dsp::WindowingFunction<float>::hann);
     const double w = 2.0 * juce::MathConstants<double>::pi * fundamental / sampleRate;
-    for (int n = 0; n < size; ++n) buf[n] = fn((float) std::sin(w * n));
+    const int preroll = size / 4;                          // discard transient
+    for (int n = 0; n < preroll; ++n) (void) fn((float) std::sin(w * n));
+    for (int n = 0; n < size; ++n) buf[n] = fn((float) std::sin(w * (n + preroll)));
     win.multiplyWithWindowingTable(buf.data(), size);
     fft.performFrequencyOnlyForwardTransform(buf.data());
     std::vector<float> out;
