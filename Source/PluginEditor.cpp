@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <array>
 #include <cmath>
 
 namespace holdover {
@@ -19,33 +20,66 @@ HoldoverEditor::Content::Content(juce::AudioProcessorValueTreeState& apvts)
     addAndMakeVisible(grReadout_);
 }
 
-// Fixed layout at the base design size. Every control receives its natural
-// bounds here; the parent editor scales the whole component uniformly.
+void HoldoverEditor::Content::paint(juce::Graphics& g) {
+    // Wordmark: "HOLD" in text, "OVER" in accent.
+    juce::Font f(juce::FontOptions(19.0f, juce::Font::bold));
+    g.setFont(f);
+    juce::GlyphArrangement ga;
+    ga.addLineOfText(f, "HOLD", 0.0f, 0.0f);
+    const float holdW = ga.getBoundingBox(0, -1, true).getWidth();
+    auto h = headerArea_;
+    g.setColour(juce::Colour(HoldoverLookAndFeel::kText));
+    g.drawText("HOLD", h, juce::Justification::centredLeft);
+    g.setColour(juce::Colour(HoldoverLookAndFeel::kAccent));
+    g.drawText("OVER", h.withTrimmedLeft((int) std::ceil(holdW)), juce::Justification::centredLeft);
+
+    // Meter bridge background + title.
+    g.setColour(juce::Colour(HoldoverLookAndFeel::kPanel));
+    g.fillRoundedRectangle(bridgeArea_.toFloat(), 6.0f);
+    g.setColour(juce::Colour(HoldoverLookAndFeel::kText));
+    g.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
+    g.drawText("METERS", bridgeArea_.withTrimmedTop(6).removeFromTop(ui::kPanelTitleH - 6),
+               juce::Justification::centred);
+}
+
 void HoldoverEditor::Content::resized() {
-    auto area = getLocalBounds().reduced(8);
-    auto meterCol = area.removeFromRight(140);
+    using namespace ui;
+    auto area = getLocalBounds().reduced(12);
 
-    const int rowH = area.getHeight() / 3;
-    auto top = area.removeFromTop(rowH);
-    auto mid = area.removeFromTop(rowH);
-    auto bot = area;
+    headerArea_ = area.removeFromTop(kHeaderH).reduced(4, 0);
+    area.removeFromTop(kRowGap);
 
-    auto topCols = Panel::columns(top, 2);
-    input_.setBounds(topCols[0]);
-    filter_.setBounds(topCols[1]);
-    eq_.setBounds(mid);
+    // Left column | bridge | right column.
+    const int colW = (area.getWidth() - kBridgeW - 2 * kRowGap) / 2;
+    auto leftCol  = area.removeFromLeft(colW);
+    area.removeFromLeft(kRowGap);
+    bridgeArea_   = area.removeFromLeft(kBridgeW);
+    area.removeFromLeft(kRowGap);
+    auto rightCol = area;
 
-    auto botCols = Panel::columns(bot, 2);
-    comp_.setBounds(botCols[0]);
-    auto dr = botCols[1].removeFromTop(botCols[1].getHeight() / 2);
-    drive_.setBounds(dr);
-    matrix_.setBounds(botCols[1]);
+    // Each column: three equal-height panels, so all six bottoms align and lighter
+    // panels (INPUT, DRIVE) keep their extra space as breathing room.
+    auto splitThirds = [](juce::Rectangle<int> col) {
+        const int h = (col.getHeight() - 2 * kRowGap) / 3;
+        std::array<juce::Rectangle<int>, 3> r;
+        r[0] = col.removeFromTop(h); col.removeFromTop(kRowGap);
+        r[1] = col.removeFromTop(h); col.removeFromTop(kRowGap);
+        r[2] = col;
+        return r;
+    };
+    auto L = splitThirds(leftCol);
+    input_.setBounds(L[0]); filter_.setBounds(L[1]); eq_.setBounds(L[2]);
+    auto R = splitThirds(rightCol);
+    comp_.setBounds(R[0]); drive_.setBounds(R[1]); matrix_.setBounds(R[2]);
 
-    auto satA = meterCol.removeFromTop(meterCol.getHeight() / 2).reduced(4);
-    satMeter_.setBounds(satA);
-    auto grA = meterCol.reduced(4);
-    grReadout_.setBounds(grA.removeFromBottom(18));
-    grMeter_.setBounds(grA);
+    // Bridge interior: title (painted) on top, GR readout at the bottom, two ladders fill.
+    auto br = bridgeArea_.reduced(8);
+    br.removeFromTop(kPanelTitleH - 6);
+    grReadout_.setBounds(br.removeFromBottom(18));
+    br.removeFromBottom(8);
+    const int half = br.getWidth() / 2;
+    satMeter_.setBounds(br.removeFromLeft(half).reduced(3, 0));
+    grMeter_.setBounds(br.reduced(3, 0));
 }
 
 void HoldoverEditor::Content::updateMeters(float saturation, float gainReductionDb) {

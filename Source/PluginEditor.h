@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "ui/HoldoverLookAndFeel.h"
 #include "ui/LedMeter.h"
+#include "ui/Layout.h"
 #include "ui/panels/InputPanel.h"
 #include "ui/panels/FilterPanel.h"
 #include "ui/panels/EqPanel.h"
@@ -33,6 +34,7 @@ private:
     class Content : public juce::Component {
     public:
         explicit Content(juce::AudioProcessorValueTreeState&);
+        void paint(juce::Graphics&) override;
         void resized() override;
         void updateMeters(float saturation, float gainReductionDb);
 
@@ -47,6 +49,8 @@ private:
         LedMeter satMeter_ { "SATURATING" };
         LedMeter grMeter_  { "COMPRESSING" };
         juce::Label grReadout_;
+
+        juce::Rectangle<int> headerArea_, bridgeArea_; // painted in paint()
     };
 
     HoldoverProcessor& processor;

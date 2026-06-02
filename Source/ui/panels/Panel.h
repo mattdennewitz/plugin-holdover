@@ -30,14 +30,6 @@ public:
         a.removeFromBottom(ui::kPanelPadBot);
         return a;
     }
-    // Retained until Content::resized() is rewritten in a later task (it still calls this).
-    static std::vector<juce::Rectangle<int>> columns(juce::Rectangle<int> a, int n, int gap = 6) {
-        std::vector<juce::Rectangle<int>> out;
-        if (n <= 0) return out;
-        const int w = (a.getWidth() - gap * (n - 1)) / n;
-        for (int i = 0; i < n; ++i) { out.push_back(a.removeFromLeft(w)); if (i < n - 1) a.removeFromLeft(gap); }
-        return out;
-    }
 private:
     juce::String title_;
 };
