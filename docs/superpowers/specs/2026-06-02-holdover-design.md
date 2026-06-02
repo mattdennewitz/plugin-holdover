@@ -107,12 +107,18 @@ the audio path; parameter changes are smoothed.
 ### 3.2 FilterBlock
 - **HPF**: frequency 20 Hz – 4.7 kHz; **PEAK** = resonance, self-oscillates above 8.
 - **LPF**: frequency 220 Hz – 22 kHz; **PEAK** = resonance, self-oscillates above 8.
-- Implementation: TPT/SVF (Zavalishin-style) state-variable filters for stable,
-  self-oscillation-capable resonance.
+- Implementation: TPT/SVF (Zavalishin-style) state-variable filters. A saturating
+  nonlinearity (tanh/soft-clip) sits **inside the resonance feedback path** so that
+  self-oscillation self-limits to a fixed amplitude (no digital runaway) and gains
+  musical grit when pushed. This filter-loop nonlinearity is distinct from the
+  DriveBlock saturation.
 - **CURVE** switch — pre/de-emphasis around the saturation stages that preserves
   low-end power under drive (default ON); OFF = looser, dirtier lows. Functionally
   a drive-stage control; placed in the UI near Drive (hardware silkscreens it in the
-  bandwidth section). Single CURVE control.
+  bandwidth section). Single CURVE control. **Baseline: pre- and de-emphasis are
+  mathematical inverses**, so with the stages undriven the frequency response is flat
+  and CURVE only manifests through the nonlinearity (expected: inaudible at zero
+  drive). A slight intentional non-inverse coloration may be allowed as a tuning call.
 
 ### 3.3 EqBlock
 - **Low shelf**: ±18 dB, frequency switch 50 / 150 / 300 Hz.
@@ -128,8 +134,13 @@ the audio path; parameter changes are smoothed.
 - **BEHAVIOR** — nonlinearly magnifies the gain-reduction curve and dynamically
   skews attack/release timing. At 0: gentle, set timing. As increased: steeper
   effective ratio, faster/more reactive timing, eventually musical over-compression
-  ("active, bouncing" feel). Implemented via a tunable nonlinear gain-computer +
-  envelope-overshoot term; tuned by ear against the documented behavior.
+  ("active, bouncing" feel). Implementation: **program-dependent timing** — the
+  effective attack/release constants are a log-domain interpolation between the
+  fast/slow values keyed to the *instantaneous* gain-reduction amount (not the raw
+  parameter), which produces the clutch/bounce. BEHAVIOR scales how strongly GR skews
+  both ratio and that timing. An optional small detector-feedback term may be added
+  for extra "bounce." The unit is a feed-forward "clean VCA," so feedback is a
+  character refinement, not the base topology. Tuned by ear in prototyping.
 - **ATTACK / RELEASE** — 3-position each (Fast / Medium / Slow), discrete time
   constants. Disabled in RMS mode.
 - **MAKEUP** — unity at 5. Pushed past unity, a soft nonlinearity is added (the
@@ -148,19 +159,29 @@ the audio path; parameter changes are smoothed.
     without adding murk (tanh/diode-style waveshaper, tighter knee).
   - **HEX** — on/off: aggressive CMOS hex-inverter fuzz; hard clipping rich in
     high-order content, grinds the top end, does not "clean up."
-- **Oversampling**: 4× (with anti-aliasing/anti-imaging filters) across the drive
-  block to control alias products, especially from HEX. (Oversampling factor and
-  filter quality finalized in the plan; consider a quality switch later.)
+- **Oversampling**: required because the SAT/HEX hard nonlinearities alias heavily.
+  Architecture (drive-only vs whole-matrix; FIR linear-phase vs IIR min-phase) is the
+  one open decision — see §6 and §9. Whatever is chosen, the resulting latency is
+  reported to the host and the parallel feeds are delay-compensated (see FeedMatrix).
 - **CURVE** emphasis applied around this block (see 3.2).
 
 ### 3.6 FeedMatrix
 - Sums the three feeds, each with a continuous level and a mute:
   **DRY/EQ feed** (+ source switch PRE/POST), **COMP feed**, **SAT feed**.
+- **Owns summing + phase coherence** as the central "bus matrix." With the chosen
+  whole-matrix oversampling (§6), all three feeds run at the high rate and share one
+  latency, so no per-feed delay lines are needed and toggling drive stages never
+  introduces comb filtering. The matrix reports the single shared latency to the host
+  via `setLatencySamples`. (If a future build moves to drive-only oversampling, this
+  class is where per-feed delay compensation would live.)
 
 ### 3.7 CeilingLimiter
-- Aggressive brickwall-style limiter after the matrix bus, before the output fader.
-  Can be pushed to a near-static, distorted state (faithful to the hardware's
-  behavior). Engaged via the **CEILING** switch.
+- After the matrix bus, before the output fader. **Not** a transparent lookahead
+  limiter — to capture the "power-rail" grind, implement as a hard-clipper / shaper
+  followed by a fast-release low-pass (waveshaper character), so it grinds the
+  waveform toward a near-static, distorted state when pushed. Engaged via the
+  **CEILING** switch. Because it hard-clips, it must sit **inside the oversampled
+  region**.
 
 ### 3.8 OutputStage
 - **OUTPUT** — master output fader.
@@ -214,8 +235,17 @@ Exact ranges, skews, and default values are fixed in the implementation plan.
   mono/stereo main + optional sidechain.
 - State: APVTS `getStateInformation` / `setStateInformation`. Presets: factory bank
   (XML/binary embedded) + user presets via host.
-- Realtime discipline: no allocation/locks in `processBlock`; smoothed parameters;
-  oversampling buffers preallocated in `prepareToPlay`.
+- Realtime discipline: no allocation/locks in `processBlock`; oversampling buffers
+  preallocated in `prepareToPlay`.
+- Parameter smoothing via `juce::SmoothedValue` with ~5–10 ms ramps to kill zipper
+  noise during automation/"played" use. Frequency parameters (filter cutoffs,
+  presence freq) smoothed **multiplicatively** (log domain), not linearly.
+- **Oversampling architecture (decided):** oversample the *entire matrix region once*
+  — all three feeds (DRY/EQ, COMP, SAT) run at the high rate and are downsampled once
+  at the output. All feeds therefore share identical latency (phase-coherent by
+  construction, no per-feed delay lines needed), and minimum-phase oversampling is
+  usable for transient feel. Factor (4× vs 8×) is the remaining tuning knob.
+- Latency: reported via `setLatencySamples` (single, shared across feeds).
 
 ---
 
@@ -254,10 +284,11 @@ Exact ranges, skews, and default values are fixed in the implementation plan.
 
 ## 9. Open items to resolve in the plan
 
+- Oversampling **factor** (4× vs 8×) and an optional quality switch. (Architecture is
+  decided — see §6.)
 - Exact dB/Hz mappings for the 0–10 hardware scales (GAIN, INPUT, OUTPUT, feeds,
   DRIVE, MAKEUP).
-- BEHAVIOR transfer function specifics and how strongly it skews timing.
-- Oversampling factor (4× vs 8×) and filter design; optional quality switch.
-- Ceiling limiter character (lookahead vs none) and how aggressive at max.
+- BEHAVIOR detail: timing-interpolation curve, GR→ratio skew strength, and whether
+  the optional detector-feedback term is included.
 - Whether CURVE is one switch (assumed) or separate HPF/LPF emphasis switches.
 - Factory preset list and starting values.
