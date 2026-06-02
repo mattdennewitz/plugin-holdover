@@ -44,6 +44,14 @@ void DriveBlock::setSat(bool on) noexcept { sat_ = on; }
 void DriveBlock::setHex(bool on) noexcept { hex_ = on; }
 void DriveBlock::setCurve(bool on) noexcept { curve_ = on; }
 
+void DriveBlock::setCharacter(float amount01, float chSign) noexcept {
+    character_ = juce::jlimit(0.0f, 1.0f, amount01);
+    // A small DC offset pushed into the shaper biases it off-center, generating
+    // 2nd-harmonic "growl". Opposite sign per channel de-correlates L/R. Ear-tuned.
+    constexpr float kBiasMax = 0.1f;
+    bias_ = chSign * kBiasMax * character_;
+}
+
 float DriveBlock::masStage(float x) const noexcept {
     if (mas_ == 1) {                      // 2nd-emphasis: asymmetric, even harmonics
         // Normalize input to avoid hard-clipping into a square wave (which produces
@@ -71,14 +79,17 @@ float DriveBlock::hexStage(float x) noexcept {
 float DriveBlock::processSample(float x) noexcept {
     float y = x * preGain_;
     if (curve_) y = pre_.process(y);
+    // Class-A asymmetric bias: only meaningful when a shaper follows. bias_ is 0 when
+    // character is 0, so the stages-off identity path below is unchanged.
+    const bool stagesActive = (mas_ != 0) || sat_ || hex_;
+    if (stagesActive) y += bias_;
     y = masStage(y);
     if (sat_) y = satStage(y);
     if (hex_) y = hexStage(y);
     if (curve_) y = de_.process(y);
     y *= outComp_;
-    // DC blocker only when a shaper that can introduce DC/asymmetry is active.
+    // DC blocker (also removes the bias-induced DC, leaving the even-harmonic content).
     // With all stages off, CURVE pre/de cancel exactly => keep identity (no HPF phase shift).
-    const bool stagesActive = (mas_ != 0) || sat_ || hex_;
     if (!stagesActive) return y;
     const float out = y - dcX1_ + 0.9995f * dcY1_;
     dcX1_ = y; dcY1_ = out;

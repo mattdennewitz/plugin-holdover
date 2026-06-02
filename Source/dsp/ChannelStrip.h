@@ -24,6 +24,7 @@ public:
         float thresholdDb, behaviorPos, makeupPos;
         int attackIdx, releaseIdx;
         float drivePos; int masMode;
+        float characterPos;
         float dryEqFeedPos, compFeedPos, satFeedPos, outputPos;
         int scSource;     // 0 pre, 1 ext, 2 post
         int dryEqSource;  // 0 pre, 1 post

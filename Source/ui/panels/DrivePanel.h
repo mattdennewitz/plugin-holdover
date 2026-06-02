@@ -10,6 +10,9 @@ public:
     explicit DrivePanel(APVTS& s) : Panel("DRIVE") {
         drive_.attach(*this, s, "drive", "Drive");
         mas_.attach(*this, s, "masMode", "MAS", params::masOptions);
+        // Global analog-character macro: drives the Class-A bias here AND the VCA THD
+        // in the compressor. Lives in the Drive section as its most natural home.
+        character_.attach(*this, s, "character", "Character");
         sat_.attach(*this, s, "satEngage", "SAT", ToggleStyle::Led);
         hex_.attach(*this, s, "hexEngage", "HEX", ToggleStyle::Led);
         curve_.attach(*this, s, "curve", "CURVE", ToggleStyle::Led);
@@ -18,9 +21,11 @@ public:
         auto a = contentArea();
         auto row = a.removeFromTop(ui::kCellH);
         auto driveCell = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap);
-        auto masCell   = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap * 2);
+        auto masCell   = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap);
+        auto charCell  = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap * 2);
         drive_.layout(driveCell);
         mas_.layout(masCell);
+        character_.layout(charCell);
         // Three LED buttons stacked, vertically centred in the remaining width.
         constexpr int gap = 6; // vertical gap between the stacked LED buttons
         auto stack = row.withSizeKeepingCentre(juce::jmin(row.getWidth(), 120),
@@ -32,6 +37,7 @@ public:
 private:
     AttachedKnob drive_;
     AttachedChoice mas_;
+    AttachedKnob character_;
     AttachedToggle sat_, hex_, curve_;
 };
 

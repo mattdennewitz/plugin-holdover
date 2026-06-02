@@ -22,6 +22,7 @@ void HoldoverProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     };
     initLin(smGainL_, "gainL");   initLin(smGainR_, "gainR");   initLin(smInput_, "input");
     initLin(smOutput_, "output"); initLin(smDrive_, "drive");   initLin(smMakeup_, "makeup");
+    initLin(smCharacter_, "character");
     initLin(smThreshold_, "threshold"); initLin(smBehavior_, "behavior");
     initLin(smDryEq_, "dryEqFeedLevel"); initLin(smComp_, "compFeedLevel"); initLin(smSat_, "satFeedLevel");
     initLin(smPresenceDb_, "presenceDb"); initLin(smBassDb_, "bassDb"); initLin(smTrebleDb_, "trebleDb");
@@ -71,6 +72,7 @@ void HoldoverProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     t.outputPos = adv(smOutput_, p("output"));
     t.drivePos = adv(smDrive_, p("drive"));
     t.makeupPos = adv(smMakeup_, p("makeup"));
+    t.characterPos = adv(smCharacter_, p("character"));
     t.thresholdDb = adv(smThreshold_, p("threshold"));
     t.behaviorPos = adv(smBehavior_, p("behavior"));
     t.dryEqFeedPos = adv(smDryEq_, p("dryEqFeedLevel"));

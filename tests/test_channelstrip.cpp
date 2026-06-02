@@ -130,3 +130,53 @@ TEST_CASE("EXT sidechain with no bus produces no compression", "[strip]") {
     // scSource 1 = EXT with a silent/absent bus: detector sees silence -> ~no GR.
     REQUIRE(grForScSource(1, false) < 0.5f);
 }
+
+TEST_CASE("character parameter changes the drive output (end-to-end wiring)", "[strip]") {
+    auto capture = [](float character, std::vector<float>& out) {
+        holdover::ChannelStrip s; s.prepare(kSr, kBlock, 2);
+        auto t = neutralTargets();
+        t.drivePos = 8.0f; t.satEngage = true;   // active shaper so the bias has effect
+        t.characterPos = character;
+        s.setTargets(t);
+        const double w = 2.0 * juce::MathConstants<double>::pi * 1000.0 / kSr;
+        int phase = 0;
+        juce::AudioBuffer<float> main(2, kBlock), sc(2, kBlock);
+        for (int b = 0; b < 40; ++b) {
+            for (int n = 0; n < kBlock; ++n, ++phase) {
+                const float v = 0.5f * (float) std::sin(w * phase);
+                main.setSample(0, n, v); main.setSample(1, n, v);
+            }
+            sc.clear(); s.processBlock(main, &sc);
+            if (b >= 38) for (int n = 0; n < kBlock; ++n) out.push_back(main.getSample(0, n));
+        }
+    };
+    std::vector<float> clean, colored;
+    capture(0.0f, clean);
+    capture(10.0f, colored);
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < clean.size(); ++i)
+        maxDiff = juce::jmax(maxDiff, std::abs(clean[i] - colored[i]));
+    REQUIRE(maxDiff > 1.0e-3f);
+}
+
+TEST_CASE("no NaNs with character maxed under extreme drive and compression", "[strip]") {
+    // The default extreme-drive NaN test runs at character 0, so it never exercises the
+    // Class-A bias or the VCA THD. Stress both new nonlinear paths at full character,
+    // worst-case drive stages, and heavy gain reduction.
+    holdover::ChannelStrip s; s.prepare(kSr, kBlock, 2);
+    auto t = neutralTargets();
+    t.drivePos = 10.0f; t.masMode = 2; t.satEngage = true; t.hexEngage = true;
+    t.ceiling = true;
+    t.characterPos = 10.0f;                                   // max bias + max VCA THD
+    t.compEngage = true; t.thresholdDb = -40.0f; t.behaviorPos = 10.0f; // heavy GR
+    s.setTargets(t);
+    juce::AudioBuffer<float> main(2, kBlock), sc(2, kBlock);
+    for (int b = 0; b < 20; ++b) {
+        for (int n = 0; n < kBlock; ++n) { main.setSample(0, n, 0.9f); main.setSample(1, n, -0.9f); }
+        sc.clear(); s.processBlock(main, &sc);
+        for (int n = 0; n < kBlock; ++n) {
+            REQUIRE(std::isfinite(main.getSample(0, n)));
+            REQUIRE(std::isfinite(main.getSample(1, n)));
+        }
+    }
+}

@@ -10,6 +10,15 @@ static inline float softSat(float x, float drive) noexcept {
     return std::tanh(d * x) / std::tanh(d);
 }
 
+// Asymmetric, odd-dominant VCA waveshaper. `drive` grows with gain reduction, so the
+// signal gets thicker the harder the VCA clamps. The bias term adds a touch of 2nd to
+// the tanh's odd series for "bite"; subtracting tanh(b) keeps the output centered.
+static inline float vcaSat(float x, float drive) noexcept {
+    const float d = 1.0f + drive * 4.0f;
+    const float b = 0.08f * drive;
+    return (std::tanh(d * x + b) - std::tanh(b)) / d;
+}
+
 float Compressor::msToCoeff(float ms, double sr) noexcept {
     const float tau = juce::jmax(1.0e-4f, ms * 1.0e-3f);
     return std::exp(-1.0f / (tau * (float) sr));
@@ -53,6 +62,9 @@ void Compressor::setTiming(int atk, int rel) noexcept {
 
 void Compressor::setRmsMode(bool on) noexcept { rmsMode_ = on; }
 void Compressor::setScFilter(bool on) noexcept { scFilterOn_ = on; }
+void Compressor::setVcaCharacter(float amount01) noexcept {
+    vcaChar_ = juce::jlimit(0.0f, 1.0f, amount01);
+}
 
 void Compressor::processStereo(float& l, float& r, float scL, float scR) noexcept {
     // 1) linked detector input
@@ -98,6 +110,18 @@ void Compressor::processStereo(float& l, float& r, float scL, float scR) noexcep
     const float g = envGain_;
     lastReduction_ = 1.0f - g;
     lastGrDb_ = -juce::Decibels::gainToDecibels(g);
+
+    // 5b) VCA harmonic distortion that tracks gain reduction (thicker the harder it
+    // clamps). Zero when character is off or there is no reduction. The small per-channel
+    // offset de-correlates L/R; detection above stays linked, so the image is stable.
+    // Applied before the gain multiply so the shaper operates at full signal level.
+    const float grDrive = vcaChar_ * lastReduction_;
+    if (grDrive > 0.0f) {
+        constexpr float kVcaChOffset = 0.05f;
+        l = vcaSat(l, grDrive * (1.0f + kVcaChOffset));
+        r = vcaSat(r, grDrive * (1.0f - kVcaChOffset));
+    }
+
     l *= g; r *= g;
 
     // 6) makeup (+ soft nonlinearity past unity)

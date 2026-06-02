@@ -48,6 +48,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout() {
     // --- Drive ---
     p.push_back(std::make_unique<APF>(pid("drive"), "Drive", Range(0.0f, 10.0f, 0.01f), 5.0f));
     p.push_back(std::make_unique<APC>(pid("masMode"), "MAS", masOptions, 0));
+    p.push_back(std::make_unique<APF>(pid("character"), "Character", Range(0.0f, 10.0f, 0.01f), 0.0f));
 
     // --- Matrix / Output ---
     p.push_back(std::make_unique<APF>(pid("dryEqFeedLevel"), "Dry/EQ Feed", Range(0.0f, 10.0f, 0.01f), 0.0f));
@@ -80,7 +81,7 @@ const juce::StringArray& allIDs() {
         "makeup","drive","dryEqFeedLevel","compFeedLevel","satFeedLevel","output",
         "bassFreq","trebleFreq","attack","release","masMode","scSource","dryEqSource",
         "filtEngage","eqEngage","compEngage","curve","rmsMode","scFilter",
-        "satEngage","hexEngage","dryEqMute","compMute","satMute","ceiling" };
+        "satEngage","hexEngage","dryEqMute","compMute","satMute","ceiling","character" };
     return ids;
 }
 
