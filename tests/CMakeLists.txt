@@ -16,7 +16,8 @@ add_executable(HoldoverTests
     test_ceiling.cpp
     test_output.cpp
     test_channelstrip.cpp
-    test_presets.cpp)
+    test_presets.cpp
+    test_hardening.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
 target_compile_features(HoldoverTests PRIVATE cxx_std_20)
