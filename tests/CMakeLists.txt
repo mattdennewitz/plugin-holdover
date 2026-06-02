@@ -13,7 +13,8 @@ add_executable(HoldoverTests
     test_drive.cpp
     test_inputstage.cpp
     test_matrix.cpp
-    test_ceiling.cpp)
+    test_ceiling.cpp
+    test_output.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
 target_compile_features(HoldoverTests PRIVATE cxx_std_20)
