@@ -153,7 +153,8 @@ void ChannelStrip::processOversampled(juce::dsp::AudioBlock<float>& up,
         up.setSample(0, i, outL);
         if (stereo) up.setSample(1, i, outR);
 
-        satAccum = juce::jmax(satAccum, std::abs(driveOutL - serialAfterCompL));
+        satAccum = juce::jmax(satAccum, std::abs(driveOutL - serialAfterCompL),
+                                        std::abs(driveOutR - serialAfterCompR));
     }
     satActivity_ = satAccum;
 }
