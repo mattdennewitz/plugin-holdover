@@ -4,6 +4,7 @@ add_library(HoldoverDSP STATIC
     dsp/FilterBlock.cpp
     dsp/EqBlock.cpp
     dsp/Compressor.cpp
+    dsp/DriveBlock.cpp
     # dsp/*.cpp added by later tasks
 )
 target_include_directories(HoldoverDSP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
