@@ -45,7 +45,8 @@ private:
     int currentProgram_ = 0;
 
     juce::SmoothedValue<float> smGainL_, smGainR_, smInput_, smOutput_, smDrive_, smMakeup_,
-        smThreshold_, smBehavior_, smDryEq_, smComp_, smSat_, smPresenceDb_, smBassDb_, smTrebleDb_;
+        smThreshold_, smBehavior_, smDryEq_, smComp_, smSat_, smPresenceDb_, smBassDb_, smTrebleDb_,
+        smCharacter_;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative>
         smHpf_, smLpf_, smPresenceFreq_;
 

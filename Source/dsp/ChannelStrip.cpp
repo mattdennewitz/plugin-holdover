@@ -58,6 +58,10 @@ void ChannelStrip::applyTargets() noexcept {
         d.setDrive(t_.drivePos); d.setMas(t_.masMode);
         d.setSat(t_.satEngage); d.setHex(t_.hexEngage); d.setCurve(t_.curve);
     }
+    const float char01 = juce::jlimit(0.0f, 1.0f, t_.characterPos * 0.1f);
+    drive_[0].setCharacter(char01, +1.0f);
+    drive_[1].setCharacter(char01, -1.0f);
+    comp_.setVcaCharacter(char01);
     matrix_.setDryEq(t_.dryEqFeedPos, t_.dryEqMute);
     matrix_.setComp(t_.compFeedPos, t_.compMute);
     matrix_.setSat(t_.satFeedPos, t_.satMute);

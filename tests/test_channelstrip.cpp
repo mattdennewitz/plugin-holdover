@@ -130,3 +130,31 @@ TEST_CASE("EXT sidechain with no bus produces no compression", "[strip]") {
     // scSource 1 = EXT with a silent/absent bus: detector sees silence -> ~no GR.
     REQUIRE(grForScSource(1, false) < 0.5f);
 }
+
+TEST_CASE("character parameter changes the drive output (end-to-end wiring)", "[strip]") {
+    auto capture = [](float character, std::vector<float>& out) {
+        holdover::ChannelStrip s; s.prepare(kSr, kBlock, 2);
+        auto t = neutralTargets();
+        t.drivePos = 8.0f; t.satEngage = true;   // active shaper so the bias has effect
+        t.characterPos = character;
+        s.setTargets(t);
+        const double w = 2.0 * juce::MathConstants<double>::pi * 1000.0 / kSr;
+        int phase = 0;
+        juce::AudioBuffer<float> main(2, kBlock), sc(2, kBlock);
+        for (int b = 0; b < 40; ++b) {
+            for (int n = 0; n < kBlock; ++n, ++phase) {
+                const float v = 0.5f * (float) std::sin(w * phase);
+                main.setSample(0, n, v); main.setSample(1, n, v);
+            }
+            sc.clear(); s.processBlock(main, &sc);
+            if (b >= 38) for (int n = 0; n < kBlock; ++n) out.push_back(main.getSample(0, n));
+        }
+    };
+    std::vector<float> clean, colored;
+    capture(0.0f, clean);
+    capture(10.0f, colored);
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < clean.size(); ++i)
+        maxDiff = juce::jmax(maxDiff, std::abs(clean[i] - colored[i]));
+    REQUIRE(maxDiff > 1.0e-3f);
+}

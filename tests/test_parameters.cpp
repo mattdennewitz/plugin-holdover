@@ -9,7 +9,7 @@ TEST_CASE("parameter layout contains every spec parameter", "[params]") {
         "makeup","drive","dryEqFeedLevel","compFeedLevel","satFeedLevel","output",
         "bassFreq","trebleFreq","attack","release","masMode","scSource","dryEqSource",
         "filtEngage","eqEngage","compEngage","curve","rmsMode","scFilter",
-        "satEngage","hexEngage","dryEqMute","compMute","satMute","ceiling" };
+        "satEngage","hexEngage","dryEqMute","compMute","satMute","ceiling","character" };
     REQUIRE(holdover::params::allIDs().size() == expected.size());
     for (auto& id : expected)
         REQUIRE(holdover::params::allIDs().contains(id));
