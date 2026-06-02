@@ -1,7 +1,7 @@
 # Analog Character & Aliveness — Ideas Study
 
 **Date:** 2026-06-02
-**Status:** Exploratory study (pre-design). Findings will be implemented selectively, gated on listening results.
+**Status:** Exploratory study (pre-design). Findings will be implemented selectively, gated on listening results. Revised 2026-06-02 with DSP-engineer review refinements (see §13).
 **Scope:** What each Holdover DSP component can learn from 80s-era gear, and how to make the
 plugin sound more *alive*. This is a catalog with implementation sketches — not an approved
 implementation spec. Each finding is a candidate; we build what survives an A/B test.
@@ -48,11 +48,11 @@ Both priorities trace back to this. The findings below introduce *level-dependen
 
 | # | Component | Priority served | Impact | Cost |
 |---|-----------|-----------------|--------|------|
-| 1 | DriveBlock — level-dependent even/odd balance + bias | Harmonics | High | Low |
-| 2 | Compressor — VCA THD that tracks gain reduction | Harmonics | High | Low |
-| 3 | InputStage — transformer-style level coloration | Harmonics + stereo seed | High | Medium |
-| 4 | Global stereo layer — per-channel offset table | Stereo life | Medium-high | Low-medium |
-| 5 | EqBlock — saturation on boosted bands | Harmonics | Medium | Low |
+| 1 | DriveBlock — **Class-A** level-dependent even/odd balance + asymmetric bias | Harmonics | High | Low |
+| 2 | Compressor — VCA THD that tracks gain reduction (asymmetric, odd-dominant) | Harmonics | High | Low |
+| 3 | InputStage — transformer-style **LF-weighted** level coloration | Harmonics + stereo seed | High | Medium |
+| 4 | Global stereo layer — per-channel offset table **+ console crosstalk** | Stereo life | Medium-high | Low-medium |
+| 5 | EqBlock — saturation on boosted bands (post-band → optionally in-loop) | Harmonics | Medium | Low→Med |
 | 6 | FilterBlock — level-dependent resonance + stereo cutoff | Harmonics + stereo | Medium | Low |
 | 7 | Ceiling / noise / drift | (de-prioritized) | — | — (see §11) |
 
@@ -67,23 +67,31 @@ Both priorities trace back to this. The findings below introduce *level-dependen
 - `outComp_` normalizes output by `1/√preGain`. DC blocker runs only when a stage is active.
 The harmonic *recipe* does not move with drive, and there is no bias asymmetry.
 
-**80s lesson (hybrid):** tube/transformer/discrete stages lead with even-order (2nd) when gently
-driven and progressively add odd-order (3rd, 5th) and higher harmonics as pushed. Bias is never
-perfectly centered, so a small asymmetry generates even harmonics independent of level.
+**80s lesson (hybrid):** **Class-A** discrete stages (Neve 1073/1081) are biased toward even-order
+(2nd) harmonics until they hit the rails, where odd-order and higher harmonics take over. Bias is
+never perfectly centered, so a small asymmetry generates 2nd-harmonic "growl" independent of level.
+*(Reviewer note: the 1073's stepped 5 dB gain also re-shapes its feedback loop per step — a
+1073-specific "Zone" effect. Holdover's DRIVE is continuous, so we treat stepped feedback as an
+optional flavor, not core.)*
 
 **Alive move:**
-- A **drive-dependent even/odd blend**: at low `preGain_`, weight the even-flavored term; as drive
-  rises, crossfade toward the odd/cubic shaper and let higher harmonics climb.
-- A small **bias term** added before the shaper (generates 2nd), with **opposite sign per channel**
-  for stereo life.
+- **Asymmetric bias is the headline** — the Class-A signature, the "Neve growl." A small `bias_`
+  before the shaper generates 2nd-order content; give it **opposite sign per channel** for stereo
+  life.
+- A **non-linear drive→even/odd map** (not a linear crossfade): keep the sound in the **even-order
+  sweet spot for roughly the first half of the `preGain_` range**, then bloom into odd-order /
+  hex-inverter grit only when pushed into the "red." This matches how a Class-A stage stays warm
+  until it's slammed.
 
 **Sketch:**
 ```cpp
 // DriveBlock: members set in setDrive(pos)
-float bias_ = 0.0f;        // base asymmetry, scaled down as drive rises
-float evenOdd_ = 0.0f;     // 0 = even-leaning, 1 = odd-leaning; = f(pos)
-float chBias_ = 0.0f;      // per-channel sign offset, set by setChannelOffset()
+float bias_    = 0.0f;     // base asymmetry (2nd-harmonic), eased down as drive rises
+float evenOdd_ = 0.0f;     // 0 = even sweet spot, 1 = odd/grit; NON-LINEAR f(pos)
+float chBias_  = 0.0f;     // per-channel sign offset, set by setChannelOffset()
 
+// evenOdd_ stays ~0 through the lower drive range, then climbs steeply:
+//   evenOdd_ = smoothstep(threshold≈0.5, 1.0, normalizedDrive);   // tune by ear
 // in masStage (and optionally satStage):
 const float xb = x + bias_ + chBias_;
 const float even = /* asymmetric quadratic-flavored soft clip */;
@@ -106,21 +114,25 @@ blocker already handles bias-induced DC. Keep the **stages-off + unity = identit
 (`makeupDrive_` feeds `softSat`). Detector is linked (`max(|scL|,|scR|)`). `kDetectorFeedback`
 already exists for bounce.
 
-**80s lesson (hybrid):** VCA control elements (dbx/THAT, SSL G-bus) generate THD that **rises with
-control voltage — i.e. with gain reduction**. Heavier compression → more 2nd/3rd and a slight HF
-softening. This *is* the "glue" and grit; it is inseparable from the act of compressing.
+**80s lesson (hybrid):** VCA control elements (dbx/THAT, SSL G-bus, Neve 33609 — the "British bus"
+sound) generate THD that **rises with control voltage — i.e. with gain reduction**. The signal gets
+*thicker* the harder the VCA clamps; under heavy GR these circuits push into a region where **3rd
+(odd) harmonics dominate**, giving the aggressive "bite." This *is* the glue and grit — inseparable
+from the act of compressing.
 
 **Alive move:** after applying `envGain_`, add saturation scaled by **instantaneous reduction**
-(`lastReduction_ = 1 - g`), independent of the makeup path. De-correlate L/R by driving each
-channel's saturation slightly differently while keeping **detection linked** (image stays stable).
+(`lastReduction_ = 1 - g`), independent of the makeup path. Make the shaper **asymmetric and
+odd-leaning** so heavy GR adds bite, not just warmth. De-correlate L/R by driving each channel's
+saturation slightly differently while keeping **detection linked** (image stays stable).
 
 **Sketch:**
 ```cpp
 // after step 5 (apply VCA gain), before/with makeup:
 const float grDrive = kVcaThd * lastReduction_;          // 0 at no GR
 if (grDrive > 0.0f) {
-    l = softSat(l, grDrive * (1.0f + chOffset_));
-    r = softSat(r, grDrive * (1.0f - chOffset_));
+    // asymmetric, odd-dominant shaper (bias the curve so 3rd climbs under heavy GR):
+    l = vcaShape(l, grDrive * (1.0f + chOffset_));
+    r = vcaShape(r, grDrive * (1.0f - chOffset_));
 }
 ```
 Optional tone extra: a one-pole LP whose cutoff drops with GR (HF dulling under heavy clamp) —
@@ -138,12 +150,20 @@ tests hold.
 before `os_->processSamplesUp`** in `ChannelStrip::processBlock`.
 
 **80s lesson (hybrid):** Neve/API input iron + discrete amp add low-order harmonics that bloom with
-level, gentle LF saturation, a touch of HF softening — and channel trims are never identical.
-Coloring the *input* seeds harmonic character into everything downstream and is the earliest place
-to introduce an L/R offset.
+level, and — critically — **transformers saturate more at low frequencies**. Core flux is inversely
+proportional to frequency (Φ ∝ V/f), so for a given level the lows demand the most flux and reach
+saturation first. This frequency-dependence *is* the classic Neve "low-end bloom/weight"; a flat
+`tanh` misses it entirely. Real iron also has **hysteresis** (a magnetic "memory") that adds a
+subtle phase shift and its own harmonic signature. And channel trims are never identical. Coloring
+the *input* seeds harmonic character into everything downstream and is the earliest L/R offset point.
 
-**Alive move:** a gentle, mostly-2nd, level-dependent soft-saturation at input, plus a per-channel
-bias offset (first stereo de-correlation point).
+**Alive move:**
+- A gentle, mostly-2nd, level-dependent **frequency-weighted** soft-saturation: drive the
+  nonlinearity *harder in the lows* so the bottom blooms first (e.g. a low-shelf lift feeding the
+  shaper, compensated after). This is the single most distinctive Neve trait to capture here.
+- A per-channel bias offset (first stereo de-correlation point).
+- **Hysteresis** (phase memory + its harmonic signature) is a meaningfully bigger lift than a
+  frequency-weighted shaper — flagged as an **optional deeper move**, not part of the headline.
 
 **Architectural catch (important):** because this **generates harmonics**, doing it at base rate
 will **alias**. Two options:
@@ -153,43 +173,66 @@ will **alias**. Two options:
 - **(b)** Keep at base rate but restrict to a very gentle 2nd-order curve — cheaper, but a
   compromise on correctness.
 
-**Sketch (option a):** add a small `TransformerStage` (bias + asymmetric soft clip + optional gentle
-LF/HF tilt) invoked per-channel at the start of `processOversampled`, parameterized by an "input
-character" amount and `chOffset_`.
+**Sketch (option a):** add a small `TransformerStage` invoked per-channel at the start of
+`processOversampled`, parameterized by an "input character" amount and `chOffset_`. The key detail is
+**LF-weighted drive** — saturate the lows harder:
+```cpp
+// frequency-weight the drive into the shaper so lows saturate first (Φ ∝ V/f):
+const float driven = lfShelf_.process(x) * inputDrive_;   // low-shelf lifts LF into the curve
+float y = asymSoftClip(driven + bias_ + chBias_);         // mostly-2nd, asymmetric
+y = lfShelfInv_.process(y);                                // compensate the pre-emphasis
+// optional deeper move: replace asymSoftClip with a hysteresis model (phase memory).
+```
 
 **Cost / risk:** Medium — touches `ChannelStrip` routing. Validate with an alias-rejection test
 (harmonics above Nyquist suppressed) and confirm unity/clean path when character = 0.
 
 ---
 
-## 6. Global stereo layer — per-channel offset table
+## 6. Global stereo layer — per-channel offsets + console crosstalk
 
 **Now:** nonexistent. Per-channel stage *instances* exist with **identical** coefficients; comp is
 linked. Result: L == R.
 
-**80s lesson (hybrid):** no two console channels are trimmed identically — component tolerances and
-trim pots leave each path slightly different. The effect is *consistent* (not random), which is why
-it reads as stable width rather than noise.
+**80s lesson (hybrid):** two effects, both consistent (not random), which is why they read as stable
+width and glue rather than noise:
+1. **Trim mismatch** — no two console channels are trimmed identically; component tolerances and
+   trim pots leave each path slightly different.
+2. **Channel crosstalk** *(reviewer addition, high value)* — physically adjacent channel strips bleed
+   a tiny, filtered amount of each side into the other. This creates a **phantom center** and *glues*
+   the stereo image. For "stereo life" specifically, crosstalk does **more than trim offsets alone**,
+   because it simulates the physical proximity of the strips rather than just detuning them.
 
-**Alive move:** a single small **fixed** offset `eps` (≈0.5–2%), threaded as `+eps` to channel 0 and
-`-eps` to channel 1, applied to: filter cutoff (in cents), input/drive bias, EQ coefficient
-micro-shift, and VCA THD drive. Centralized in `ChannelStrip`.
+**Alive move:**
+- **6a — per-channel offset.** A single small **fixed** offset `eps`, threaded as `+eps` to channel 0
+  and `-eps` to channel 1, applied to: filter cutoff (in cents), input/drive bias, EQ coefficient
+  micro-shift, and VCA THD drive. Centralized in `ChannelStrip`. **Keep it small (0.5–1.0%)** — a
+  ~1.2% filter-cutoff offset is *audible*; ~0.5% is *felt*. Mono-compatibility sets the ceiling.
+- **6b — console crosstalk.** A fixed, very low-level bleed (**≈ −80 to −60 dB**) of each channel into
+  the other, gently high-shelved (the bleed is brighter / HF-tilted), summed at a single stereo point
+  (output or matrix bus). Cheap and arguably the bigger stereo-life win.
 
 **Sketch:**
 ```cpp
-// add to InputStage / FilterBlock / EqBlock / DriveBlock / Compressor:
+// 6a — add to InputStage / FilterBlock / EqBlock / DriveBlock / Compressor:
 void setChannelOffset(float eps) noexcept;   // index 0 gets +eps, index 1 gets -eps
-
-// ChannelStrip::applyTargets() or prepare():
-constexpr float kEps = 0.012f;
+// ChannelStrip:
+constexpr float kEps = 0.006f;               // ~0.5%, "felt" not "heard"
 filter_[0].setChannelOffset(+kEps); filter_[1].setChannelOffset(-kEps);
 drive_[0].setChannelOffset(+kEps);  drive_[1].setChannelOffset(-kEps);
 // (eq similarly; comp uses chOffset_ for the THD split)
+
+// 6b — crosstalk at a single stereo summing point (e.g. just before OutputStage):
+const float bleedL = xtalkShelfL_.process(outR) * kXtalk;   // kXtalk ≈ 1e-3 (-60 dB)
+const float bleedR = xtalkShelfR_.process(outL) * kXtalk;   // shelves tilt the bleed bright
+outL += bleedL; outR += bleedR;
 ```
 
-**Cost / risk:** Low per-site, but touches several files. **Mono compatibility** is the watch-item:
-offsets must be small enough that a mono fold doesn't comb audibly. Add a mono-sum sanity test
-(no severe cancellation) and a stereo-de-correlation check (L and R measurably differ).
+**Cost / risk:** Low per-site, but 6a touches several files; 6b needs a stereo summing point (the
+channels stop being fully independent there — fine, but note it). **Mono compatibility** is the
+watch-item for both: offsets/bleed must be small enough that a mono fold doesn't comb audibly. Add a
+mono-sum sanity test (no severe cancellation) and a stereo-de-correlation check (L and R measurably
+differ).
 
 ---
 
@@ -199,14 +242,22 @@ offsets must be small enough that a mono fold doesn't comb audibly. Add a mono-s
 **proportional Q** (`presenceQ`: |gain| 0→Q 0.7, 12 dB→Q 3.0) — itself the classic API/SSL move, so
 the EQ is already partly "80s correct."
 
-**80s lesson (hybrid):** console EQ amplifier/inductor stages saturate, so **boosted bands gain
+**80s lesson (hybrid):** console EQ amplifier/**inductor** stages saturate, so **boosted bands gain
 harmonic richness** (not just level), and bands **interact** (loading each other) rather than summing
-independently.
+independently. *(Reviewer detail: Neve mid-bands (1073/1081) use inductors, whose **permeability
+shifts as they saturate** — so the band's center frequency and Q drift slightly under drive, not
+just its harmonic content.)*
 
-**Alive move:** a gentle soft-saturation engaged in proportion to **boosted-band gain × signal
-level** — boosting becomes *rich*, cuts stay clean. Band interaction is a deeper, optional change.
+**Alive move (two tiers):**
+- **Cheap win (post-band):** a gentle soft-saturation engaged in proportion to **boosted-band gain ×
+  signal level** — boosting becomes *rich*, cuts stay clean. High value, low cost.
+- **Take it further (in-loop):** place the saturation **inside the biquad feedback** (or simulate it
+  there) so it affects the filter's **phase response** — this is what gives Neve inductor EQs their
+  "smeared," musical quality, and is also where the permeability-driven Fc/Q drift would live. Higher
+  complexity and risk (in-loop nonlinearity can affect stability) — a deliberate second step, not the
+  first.
 
-**Sketch:**
+**Sketch (cheap win):**
 ```cpp
 // in processSample, after the three biquads:
 float y = high_.process(mid_.process(low_.process(x)));
@@ -215,8 +266,10 @@ if (boostAmount_ > 0.0f)               // boostAmount_ = f(max boosted gain), se
 return y;
 ```
 
-**Cost / risk:** Low. Magnitude-response tests run at low level and won't trip if saturation only
-engages when *hot and boosted* — verify this gating. Add a harmonic test for the boosted+hot case.
+**Cost / risk:** Post-band tier is Low. Magnitude-response tests run at low level and won't trip if
+saturation only engages when *hot and boosted* — verify this gating; add a harmonic test for the
+boosted+hot case. The in-loop tier is Medium — needs a stability check (no runaway in the saturated
+feedback) and will alter the EQ's phase/magnitude under drive by design.
 
 ---
 
@@ -273,13 +326,24 @@ These apply to every finding and must be respected by any implementation:
 Each phase ends with an A/B against the previous state; we keep what sounds better and cut what
 doesn't. The `character` macro (§9.2) exists to make this A/B trivial.
 
-- **Phase A — prove the thesis fast:** Findings **#1 (Drive balance)** + **#2 (VCA THD)**. Both are
-  cheap, both already inside oversampling, both directly serve the harmonics priority. This is the
-  fastest path to hearing whether "level-dependent harmonics" delivers.
-- **Phase B — broad stereo win:** Finding **#4 (global offset)** + **#6 (filter stereo cutoff)**.
-- **Phase C — deeper coloration:** Finding **#3 (input transformer; routing move)** + **#5 (EQ band
-  saturation)**.
-- **Phase D — optional:** the appendix items (§11), only if movement/noise/sag prove desirable.
+There are **two defensible orderings** — the choice is cost-first vs impact-first:
+
+- **Cost-first (original):** start with the near-free moves to prove the thesis fastest.
+  1. Drive (#1) + VCA THD (#2) — both already inside oversampling, both directly serve harmonics.
+  2. Global stereo (#4: offsets + crosstalk) + filter stereo cutoff (#6).
+  3. Input transformer (#3, routing move) + EQ saturation (#5).
+  4. Optional appendix (§11).
+- **Impact-first (reviewer verdict):** lead with the moves the DSP review rates highest-impact,
+  accepting the input-stage routing cost up front.
+  1. **Input "iron" inside oversampling, LF-weighted (#3)** — rated the most distinctive Neve trait.
+  2. **Asymmetric Class-A bias in Drive (finding #1)** — the Class-A signature.
+  3. VCA THD (#2), then stereo (#4) with **small** offsets (0.5–1.0%) for mono safety.
+  4. EQ saturation (#5, post-band first), filter (#6), optional appendix (§11).
+
+**Tradeoff to decide:** Input Iron (#3) is arguably the biggest *sonic* win but carries the
+routing-move cost (§5 option a); Drive+VCA were Phase A precisely because they're *near-free to try*.
+If the goal is to validate the whole thesis with minimal code, go cost-first; if you trust the
+review and want the strongest result soonest, go impact-first. Either way each step is A/B-gated.
 
 ---
 
@@ -307,9 +371,36 @@ because movement/drift was de-prioritized.
 
 ## 12. Open questions for the build phase
 
-- Magnitude of the stereo offset `eps` (mono-compatibility ceiling) — tune by ear + mono-sum test.
+- Build ordering: cost-first vs impact-first (§10) — the one decision that shapes the whole rollout.
+- Magnitude of the stereo offset `eps` (mono-compatibility ceiling) — start ~0.5%, tune by ear +
+  mono-sum test. And crosstalk level `kXtalk` (−80…−60 dB) + its shelf tilt.
 - Whether the `character` macro is one global control, per-feature engages, or both.
-- Exact even/odd crossfade curve for Drive (finding #1) and the `kVcaThd` constant (finding #2) —
-  both are ear-tuned, with FFT tests as guardrails not targets.
-- Input transformer placement: confirm option (a) (move inside oversampling) over (b) (gentle
-  base-rate) once we hear the difference.
+- Drive (#1): the **non-linear** even→odd map shape (even sweet-spot threshold) and `bias_` amount;
+  and the `kVcaThd` constant + asymmetry for the VCA (#2). All ear-tuned, FFT tests as guardrails.
+- Input transformer (#3): confirm option (a) (inside oversampling) over (b); LF-weighting corner +
+  amount; whether hysteresis is worth the extra lift.
+- EQ (#5): stop at the post-band cheap win, or invest in the in-loop / inductor-permeability tier?
+
+---
+
+## 13. Reviewer refinements incorporated (2026-06-02)
+
+DSP-engineer review of the original study; changes folded into the findings above:
+
+- **#3 Input** — added **LF-weighted saturation** (Φ ∝ V/f → lows bloom first; the defining Neve
+  trait). **Hysteresis** noted as an optional deeper move, not headline.
+- **#1 Drive** — reframed around **Class-A asymmetric bias** as the headline ("Neve growl"), and made
+  the even→odd map **non-linear** (even sweet-spot through the lower drive range, odd bloom only in
+  the red). Stepped-feedback "Zone" noted as optional, non-core flavor.
+- **#5 EQ** — added the **in-loop saturation** tier (affects phase → the "smeared" inductor quality)
+  above the cheap post-band win, plus inductor **permeability-driven Fc/Q drift**.
+- **#4 Stereo** — promoted **console crosstalk** (−80…−60 dB, HF-tilted, summed at one stereo point)
+  as a primary stereo-life technique alongside trim offsets; **reduced the offset magnitude to
+  0.5–1.0%** (1.2% is audible; 0.5% is "felt").
+- **#2 Compressor** — specified the VCA THD shaper as **asymmetric and odd-dominant** under heavy GR
+  (the "British bus" bite), not just symmetric warmth.
+- **§10 Build order** — added an **impact-first** ordering (reviewer verdict: Input Iron #1, Class-A
+  bias #2) beside the original cost-first ordering, with the tradeoff made explicit.
+
+Assessment from the review: a "9/10 roadmap"; the highest-leverage additions are LF-weighted input
+saturation and asymmetric Class-A drive bias.
