@@ -2,6 +2,8 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "dsp/Compressor.h"
 #include <cmath>
+#include "../tests/TestSignals.h"
+#include <numeric>
 
 namespace {
 constexpr double kSr = 48000.0;
@@ -19,6 +21,20 @@ float steadyGainDb(holdover::Compressor& c, float ampDb, int n = 48000) {
     }
     return juce::Decibels::gainToDecibels((float) std::sqrt(outAcc / counted)
                                         / (float) std::sqrt(inAcc / counted));
+}
+
+// Total harmonic energy (2nd..5th) relative to the fundamental, for a 1 kHz tone
+// driven hard enough to produce steady gain reduction.
+float harmonicRatioUnderGr(bool character) {
+    holdover::Compressor c; c.prepare(kSr, 512);
+    c.setThreshold(-30.0f); c.setBehavior(6.0f); c.setMakeup(5.0f);
+    c.setTiming(0, 0); c.setRmsMode(false);
+    c.setVcaCharacter(character ? 1.0f : 0.0f);
+    c.reset();
+    auto h = test::harmonicMagnitudes(
+        [&](float x){ float l = x, r = x; c.processStereo(l, r, x, x); return l; },
+        kSr, 1000.0f, 5);
+    return std::accumulate(h.begin() + 1, h.end(), 0.0f) / h[0];
 }
 }
 
@@ -93,4 +109,19 @@ TEST_CASE("RMS detection reads lower than peak for steady tone", "[comp]") {
         return gr;
     };
     REQUIRE(grWithMode(false) > grWithMode(true) + 0.5f); // peak compresses more than RMS
+}
+
+TEST_CASE("VCA THD adds harmonics under gain reduction when character is on", "[comp]") {
+    REQUIRE(harmonicRatioUnderGr(true) > harmonicRatioUnderGr(false) * 5.0f);
+}
+
+TEST_CASE("VCA THD stays clean when there is no gain reduction", "[comp]") {
+    holdover::Compressor c; c.prepare(kSr, 512);
+    c.setThreshold(0.0f); c.setBehavior(6.0f); c.setMakeup(5.0f); // -6 dB tone never exceeds 0 dB
+    c.setTiming(0, 0); c.setRmsMode(false); c.setVcaCharacter(1.0f); c.reset();
+    auto h = test::harmonicMagnitudes(
+        [&](float x){ float s = 0.5f * x, l = s, r = s; c.processStereo(l, r, s, s); return l; },
+        kSr, 1000.0f, 5);
+    const float ratio = std::accumulate(h.begin() + 1, h.end(), 0.0f) / h[0];
+    REQUIRE(ratio < 0.01f);
 }

@@ -17,6 +17,7 @@ public:
     void setTiming(int attackIdx, int releaseIdx) noexcept; // 0=F,1=M,2=S
     void setRmsMode(bool on) noexcept;
     void setScFilter(bool on) noexcept;
+    void setVcaCharacter(float amount01) noexcept; // 0 = clean VCA, 1 = max GR-tracking THD
 
     void processStereo(float& l, float& r, float scL, float scR) noexcept;
 
@@ -38,6 +39,7 @@ private:
     float makeupDrive_ = 0.0f;
     float baseAtkMs_ = 5.0f, baseRelMs_ = 250.0f;
     bool rmsMode_ = false, scFilterOn_ = false;
+    float vcaChar_ = 0.0f; // amount of gain-reduction-tracking VCA distortion
 
     float envGain_ = 1.0f;
     float rmsState_ = 0.0f, rmsCoeff_ = 0.0f;
