@@ -10,20 +10,24 @@ public:
     explicit DrivePanel(APVTS& s) : Panel("DRIVE") {
         drive_.attach(*this, s, "drive", "Drive");
         mas_.attach(*this, s, "masMode", "MAS", params::masOptions);
-        sat_.attach(*this, s, "satEngage", "SAT");
-        hex_.attach(*this, s, "hexEngage", "HEX");
-        curve_.attach(*this, s, "curve", "Curve");
+        sat_.attach(*this, s, "satEngage", "SAT", ToggleStyle::Led);
+        hex_.attach(*this, s, "hexEngage", "HEX", ToggleStyle::Led);
+        curve_.attach(*this, s, "curve", "CURVE", ToggleStyle::Led);
     }
     void resized() override {
-        auto area = contentArea();
-        auto c = columns(area, 3);
-        drive_.layout(c[0]);
-        mas_.layout(c[1]);
-        auto toggles = c[2];
-        const int h = toggles.getHeight() / 3;
-        sat_.layout(toggles.removeFromTop(h).reduced(0, 2));
-        hex_.layout(toggles.removeFromTop(h).reduced(0, 2));
-        curve_.layout(toggles.removeFromTop(h).reduced(0, 2));
+        auto a = contentArea();
+        auto row = a.removeFromTop(ui::kCellH);
+        auto driveCell = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap);
+        auto masCell   = row.removeFromLeft(ui::kCellW); row.removeFromLeft(ui::kCellGap * 2);
+        drive_.layout(driveCell);
+        mas_.layout(masCell);
+        // Three LED buttons stacked, vertically centred in the remaining width.
+        constexpr int gap = 6; // vertical gap between the stacked LED buttons
+        auto stack = row.withSizeKeepingCentre(juce::jmin(row.getWidth(), 120),
+                                               3 * ui::kToggleH + 2 * gap);
+        sat_.layout(stack.removeFromTop(ui::kToggleH));   stack.removeFromTop(gap);
+        hex_.layout(stack.removeFromTop(ui::kToggleH));   stack.removeFromTop(gap);
+        curve_.layout(stack.removeFromTop(ui::kToggleH));
     }
 private:
     AttachedKnob drive_;

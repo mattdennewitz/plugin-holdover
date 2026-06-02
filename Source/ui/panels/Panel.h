@@ -1,7 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include <vector>
 #include "../HoldoverLookAndFeel.h"
+#include "../Layout.h"
 
 namespace holdover {
 
@@ -9,15 +9,28 @@ class Panel : public juce::Component {
 public:
     explicit Panel(juce::String title) : title_(std::move(title)) {}
     void paint(juce::Graphics& g) override {
-        auto b = getLocalBounds().toFloat().reduced(2.0f);
+        auto b = getLocalBounds().toFloat();
         g.setColour(juce::Colour(HoldoverLookAndFeel::kPanel));
-        g.fillRoundedRectangle(b, 5.0f);
+        g.fillRoundedRectangle(b, 6.0f);
+
+        auto titleRow = getLocalBounds().removeFromTop(ui::kPanelTitleH).reduced(ui::kPanelPadX, 0);
         g.setColour(juce::Colour(HoldoverLookAndFeel::kText));
-        g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-        g.drawText(title_, getLocalBounds().removeFromTop(20).reduced(8, 2),
-                   juce::Justification::centredLeft);
+        g.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+        g.drawText(title_, titleRow, juce::Justification::centredLeft);
+
+        // Hairline under the title.
+        g.setColour(juce::Colour(HoldoverLookAndFeel::kTrack));
+        g.fillRect(ui::kPanelPadX, ui::kPanelTitleH - 1,
+                   getWidth() - 2 * ui::kPanelPadX, 1);
     }
-    juce::Rectangle<int> contentArea() const { return getLocalBounds().withTrimmedTop(22).reduced(8); }
+    // Inner content rectangle: below the title, padded.
+    juce::Rectangle<int> contentArea() const {
+        auto a = getLocalBounds().reduced(ui::kPanelPadX, 0);
+        a.removeFromTop(ui::kPanelTitleH + ui::kPanelPadTop);
+        a.removeFromBottom(ui::kPanelPadBot);
+        return a;
+    }
+    // Retained until Content::resized() is rewritten in a later task (it still calls this).
     static std::vector<juce::Rectangle<int>> columns(juce::Rectangle<int> a, int n, int gap = 6) {
         std::vector<juce::Rectangle<int>> out;
         if (n <= 0) return out;
