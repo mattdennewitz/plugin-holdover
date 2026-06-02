@@ -31,7 +31,8 @@ juce_add_plugin(Holdover
 target_sources(Holdover PRIVATE
     PluginProcessor.cpp
     PluginEditor.cpp
-    ui/HoldoverLookAndFeel.cpp)
+    ui/HoldoverLookAndFeel.cpp
+    ui/LedMeter.cpp)
 
 target_compile_features(Holdover PRIVATE cxx_std_20)
 target_link_libraries(Holdover PRIVATE
