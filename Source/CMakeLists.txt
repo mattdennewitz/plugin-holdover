@@ -21,6 +21,7 @@ target_compile_definitions(HoldoverDSP PUBLIC
 juce_add_plugin(Holdover
     PRODUCT_NAME "Holdover"
     COMPANY_NAME "Holdover Audio"
+    BUNDLE_ID com.holdoveraudio.holdover
     PLUGIN_MANUFACTURER_CODE Hldv
     PLUGIN_CODE Hldv
     FORMATS VST3 AU

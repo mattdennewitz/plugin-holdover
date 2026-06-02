@@ -127,7 +127,9 @@ int HoldoverProcessor::getNumPrograms() { return (int) presets::all().size(); }
 int HoldoverProcessor::getCurrentProgram() { return currentProgram_; }
 
 void HoldoverProcessor::setCurrentProgram(int index) {
-    currentProgram_ = juce::jlimit(0, getNumPrograms() - 1, index);
+    index = juce::jlimit(0, getNumPrograms() - 1, index);
+    if (index == currentProgram_) return;
+    currentProgram_ = index;
     presets::apply(apvts, currentProgram_);
 }
 
@@ -154,9 +156,24 @@ void HoldoverProcessor::setStateInformation(const void* data, int sizeInBytes) {
     auto root = juce::ValueTree::fromXml(*xml);
     if (!root.isValid()) return;
 
+    // Pre-1.0 format: state is wrapped in "HoldoverState". Unrecognized or older
+    // blobs simply find no matching children and are ignored (no migration needed).
     auto paramState = root.getChildWithName(apvts.state.getType());
-    if (paramState.isValid())
+    if (paramState.isValid()) {
         apvts.replaceState(paramState);
+        // Force-apply each stored value to its AudioProcessorParameter directly.
+        // This is necessary because APVTS::replaceState skips parameters whose
+        // denormalised value hasn't changed (e.g. a snapped bool whose unnormalisedValue
+        // is already 0.0 but whose raw AudioParameterBool::value is still a fuzzed float).
+        for (int i = 0; i < paramState.getNumChildren(); ++i) {
+            const auto child = paramState.getChild(i);
+            if (auto* param = apvts.getParameter(child.getProperty("id").toString())) {
+                const float stored = child.getProperty("value", param->getDefaultValue());
+                const float normalised = param->convertTo0to1(stored);
+                param->setValueNotifyingHost(normalised);
+            }
+        }
+    }
 
     auto ui = root.getChildWithName("UI");
     if (ui.isValid()) {
