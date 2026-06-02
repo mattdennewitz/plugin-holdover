@@ -303,18 +303,18 @@ In `processStereo`, apply the THD immediately after the VCA gain is applied. Rep
     if (makeupDrive_ > 0.0f) { l = softSat(l, makeupDrive_); r = softSat(r, makeupDrive_); }
 ```
 
-with:
+with (note: the shaper is applied **before** the gain multiply — see rationale below):
 
 ```cpp
     // 5) apply VCA gain
     const float g = envGain_;
     lastReduction_ = 1.0f - g;
     lastGrDb_ = -juce::Decibels::gainToDecibels(g);
-    l *= g; r *= g;
 
     // 5b) VCA harmonic distortion that tracks gain reduction (thicker the harder it
     // clamps). Zero when character is off or there is no reduction. The small per-channel
     // offset de-correlates L/R; detection above stays linked, so the image is stable.
+    // Applied before the gain multiply so the shaper operates at full signal level.
     const float grDrive = vcaChar_ * lastReduction_;
     if (grDrive > 0.0f) {
         constexpr float kVcaChOffset = 0.05f;
@@ -322,10 +322,14 @@ with:
         r = vcaSat(r, grDrive * (1.0f - kVcaChOffset));
     }
 
+    l *= g; r *= g;
+
     // 6) makeup (+ soft nonlinearity past unity)
     l *= makeupGain_; r *= makeupGain_;
     if (makeupDrive_ > 0.0f) { l = softSat(l, makeupDrive_); r = softSat(r, makeupDrive_); }
 ```
+
+**Placement rationale (revised during implementation):** the original sketch applied `vcaSat` *after* `l *= g`. But under meaningful gain reduction the post-VCA signal is tiny (≈0.04 at ~28 dB GR), where `vcaSat` is essentially linear (~1% THD) — the effect would be inaudible. Applying it *before* the gain multiply lets the shaper work at full level while the drive amount still scales with `lastReduction_`, so the harmonics genuinely track how hard the VCA clamps. **Tuning note for the listening pass:** at high character this also compresses peaks before attenuation, so character can audibly lower level — revisit `vcaSat` normalization / makeup compensation so the A/B isolates *tone* from *loudness*.
 
 - [ ] **Step 5: Run the compressor tests to verify they pass**
 
