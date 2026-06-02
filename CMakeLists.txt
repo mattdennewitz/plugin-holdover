@@ -4,10 +4,7 @@ project(Holdover VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Universal binary (arm64 + x86_64) for release; single-arch is fine for local dev.
-if(NOT CMAKE_OSX_ARCHITECTURES)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
-endif()
+# Build for the host architecture (no universal binary). Deployment target only.
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 
 include(cmake/CPM.cmake)
