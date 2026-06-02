@@ -5,7 +5,8 @@ CPMAddPackage(
 
 add_executable(HoldoverTests
     test_main.cpp
-    test_scales.cpp)
+    test_scales.cpp
+    test_parameters.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
 target_compile_features(HoldoverTests PRIVATE cxx_std_20)
