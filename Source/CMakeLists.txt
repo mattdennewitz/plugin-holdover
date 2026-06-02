@@ -2,6 +2,7 @@
 add_library(HoldoverDSP STATIC
     Parameters.cpp
     dsp/FilterBlock.cpp
+    dsp/EqBlock.cpp
     # dsp/*.cpp added by later tasks
 )
 target_include_directories(HoldoverDSP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
