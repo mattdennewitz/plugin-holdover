@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Parameters.h"
 #include "dsp/ChannelStrip.h"
+#include "presets/FactoryPresets.h"
 
 namespace holdover {
 
@@ -24,10 +25,10 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram(int) override;
+    const juce::String getProgramName(int) override;
     void changeProgramName(int, const juce::String&) override {}
 
     void getStateInformation(juce::MemoryBlock&) override;
@@ -35,10 +36,13 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    int uiWidth = 900, uiHeight = 700;
+
     const MeterState& getMeters() const noexcept { return strip_.meters(); }
 
 private:
     ChannelStrip strip_;
+    int currentProgram_ = 0;
 
     juce::SmoothedValue<float> smGainL_, smGainR_, smInput_, smOutput_, smDrive_, smMakeup_,
         smThreshold_, smBehavior_, smDryEq_, smComp_, smSat_, smPresenceDb_, smBassDb_, smTrebleDb_;

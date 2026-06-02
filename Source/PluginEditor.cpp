@@ -20,7 +20,7 @@ HoldoverEditor::HoldoverEditor(HoldoverProcessor& p)
     setResizable(true, true);
     setResizeLimits(720, 520, 1600, 1100);
     getConstrainer()->setFixedAspectRatio(720.0 / 560.0);
-    setSize(900, 700);
+    setSize(processor.uiWidth, processor.uiHeight);
     startTimerHz(30);
 }
 
@@ -56,6 +56,9 @@ void HoldoverEditor::resized() {
     auto grA = meterCol.reduced(4);
     grReadout_.setBounds(grA.removeFromBottom(18));
     grMeter_.setBounds(grA);
+
+    processor.uiWidth = getWidth();
+    processor.uiHeight = getHeight();
 }
 
 void HoldoverEditor::timerCallback() {

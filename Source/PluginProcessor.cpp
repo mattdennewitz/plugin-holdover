@@ -123,15 +123,46 @@ juce::AudioProcessorEditor* HoldoverProcessor::createEditor() {
     return new HoldoverEditor(*this);
 }
 
+int HoldoverProcessor::getNumPrograms() { return (int) presets::all().size(); }
+int HoldoverProcessor::getCurrentProgram() { return currentProgram_; }
+
+void HoldoverProcessor::setCurrentProgram(int index) {
+    currentProgram_ = juce::jlimit(0, getNumPrograms() - 1, index);
+    presets::apply(apvts, currentProgram_);
+}
+
+const juce::String HoldoverProcessor::getProgramName(int index) {
+    if (index >= 0 && index < getNumPrograms())
+        return presets::all()[(size_t) index].name;
+    return {};
+}
+
 void HoldoverProcessor::getStateInformation(juce::MemoryBlock& destData) {
-    if (auto xml = apvts.copyState().createXml())
+    juce::ValueTree root("HoldoverState");
+    root.appendChild(apvts.copyState(), nullptr);
+    juce::ValueTree ui("UI");
+    ui.setProperty("width", uiWidth, nullptr);
+    ui.setProperty("height", uiHeight, nullptr);
+    root.appendChild(ui, nullptr);
+    if (auto xml = root.createXml())
         copyXmlToBinary(*xml, destData);
 }
 
 void HoldoverProcessor::setStateInformation(const void* data, int sizeInBytes) {
-    if (auto xml = getXmlFromBinary(data, sizeInBytes))
-        if (xml->hasTagName(apvts.state.getType()))
-            apvts.replaceState(juce::ValueTree::fromXml(*xml));
+    auto xml = getXmlFromBinary(data, sizeInBytes);
+    if (!xml) return;
+    auto root = juce::ValueTree::fromXml(*xml);
+    if (!root.isValid()) return;
+
+    auto paramState = root.getChildWithName(apvts.state.getType());
+    if (paramState.isValid())
+        apvts.replaceState(paramState);
+
+    auto ui = root.getChildWithName("UI");
+    if (ui.isValid()) {
+        uiWidth  = (int) ui.getProperty("width", uiWidth);
+        uiHeight = (int) ui.getProperty("height", uiHeight);
+    }
 }
 
 } // namespace holdover
