@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Parameters.h"
+#include "dsp/ChannelStrip.h"
 
 namespace holdover {
 
@@ -34,7 +35,18 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    const MeterState& getMeters() const noexcept { return strip_.meters(); }
+
 private:
+    ChannelStrip strip_;
+
+    juce::SmoothedValue<float> smGainL_, smGainR_, smInput_, smOutput_, smDrive_, smMakeup_,
+        smThreshold_, smBehavior_, smDryEq_, smComp_, smSat_, smPresenceDb_, smBassDb_, smTrebleDb_;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative>
+        smHpf_, smLpf_, smPresenceFreq_;
+
+    std::atomic<float>* p(const char* id) { return apvts.getRawParameterValue(id); }
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HoldoverProcessor)
 };
 
