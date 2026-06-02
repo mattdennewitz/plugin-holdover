@@ -8,6 +8,7 @@ add_library(HoldoverDSP STATIC
     dsp/CeilingLimiter.cpp
     dsp/ChannelStrip.cpp
     # dsp/*.cpp added by later tasks
+    presets/FactoryPresets.cpp
 )
 target_include_directories(HoldoverDSP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(HoldoverDSP PUBLIC cxx_std_20)
