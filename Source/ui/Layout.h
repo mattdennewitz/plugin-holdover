@@ -9,7 +9,7 @@ namespace holdover::ui {
 constexpr int kCellW        = 62;   // width of one knob/choice cell
 constexpr int kCellGap      = 8;    // horizontal gap between cells in a row
 constexpr int kLabelH       = 14;   // label strip above a control
-constexpr int kKnobH        = 56;   // rotary diameter target
+constexpr int kKnobH        = 64;   // vertical space for the rotary (drawn ø ~56 after the L&F inset)
 constexpr int kValueH       = 16;   // value readout strip below a knob
 constexpr int kCellH        = kLabelH + kKnobH + kValueH; // full knob-cell height (86)
 constexpr int kChoiceBoxH   = 22;   // dropdown box height

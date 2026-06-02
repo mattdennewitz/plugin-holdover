@@ -17,7 +17,7 @@ void HoldoverLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int 
     // Always draw inside the largest centred SQUARE of the slot so the knob is a
     // true circle regardless of the slot's aspect ratio. The border ring and the
     // value arc share one radius, so controls and borders line up exactly.
-    const auto slot = juce::Rectangle<float>((float) x, (float) y, (float) w, (float) h).reduced(6.0f);
+    const auto slot = juce::Rectangle<float>((float) x, (float) y, (float) w, (float) h).reduced(3.0f);
     const float diameter = juce::jmin(slot.getWidth(), slot.getHeight());
     const auto square = juce::Rectangle<float>(diameter, diameter).withCentre(slot.getCentre());
     const auto centre = square.getCentre();
