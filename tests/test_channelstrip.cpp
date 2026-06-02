@@ -158,3 +158,25 @@ TEST_CASE("character parameter changes the drive output (end-to-end wiring)", "[
         maxDiff = juce::jmax(maxDiff, std::abs(clean[i] - colored[i]));
     REQUIRE(maxDiff > 1.0e-3f);
 }
+
+TEST_CASE("no NaNs with character maxed under extreme drive and compression", "[strip]") {
+    // The default extreme-drive NaN test runs at character 0, so it never exercises the
+    // Class-A bias or the VCA THD. Stress both new nonlinear paths at full character,
+    // worst-case drive stages, and heavy gain reduction.
+    holdover::ChannelStrip s; s.prepare(kSr, kBlock, 2);
+    auto t = neutralTargets();
+    t.drivePos = 10.0f; t.masMode = 2; t.satEngage = true; t.hexEngage = true;
+    t.ceiling = true;
+    t.characterPos = 10.0f;                                   // max bias + max VCA THD
+    t.compEngage = true; t.thresholdDb = -40.0f; t.behaviorPos = 10.0f; // heavy GR
+    s.setTargets(t);
+    juce::AudioBuffer<float> main(2, kBlock), sc(2, kBlock);
+    for (int b = 0; b < 20; ++b) {
+        for (int n = 0; n < kBlock; ++n) { main.setSample(0, n, 0.9f); main.setSample(1, n, -0.9f); }
+        sc.clear(); s.processBlock(main, &sc);
+        for (int n = 0; n < kBlock; ++n) {
+            REQUIRE(std::isfinite(main.getSample(0, n)));
+            REQUIRE(std::isfinite(main.getSample(1, n)));
+        }
+    }
+}
