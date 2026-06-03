@@ -1,11 +1,20 @@
 name: build
 on: pull_request
+
+# Cancel an in-flight run when new commits land on the same ref (matches the fleet
+# standard in plugin-subharmonic-osc).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   macos:
     runs-on: macos-14
     env:
       # CPM caches fetched dependency sources here so JUCE/Catch2 aren't re-cloned each run.
       CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+      # Use the GitHub Actions cache as sccache's storage backend.
+      SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -18,21 +27,17 @@ jobs:
           restore-keys: |
             cpm-${{ runner.os }}-
 
-      # Install + manage ccache. JUCE source never changes, so after the first run its
-      # objects are cache hits and the build drops from ~30 min to a few minutes.
-      - name: Set up ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ runner.os }}-release
-          max-size: 750M
+      # sccache (GHA backend) — house standard, matching plugin-subharmonic-osc. Only the
+      # C/CXX launchers are set: sccache does not cache Objective-C++ (.mm), so JUCE's macOS
+      # modules compile uncached; the C/C++ objects (incl. the bulk of JUCE) are cached.
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
 
       - name: Configure
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DCMAKE_OBJC_COMPILER_LAUNCHER=ccache
-          -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build
         run: cmake --build build --config Release -j
