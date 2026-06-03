@@ -36,7 +36,7 @@ void DriveBlock::prepare(double sampleRate) noexcept {
 
 void DriveBlock::reset() noexcept {
     pre_.reset(); de_.reset(); dcX1_ = dcY1_ = 0.0f;
-    bias_ = biasTarget_; // start settled, no ramp-in after reset
+    bias_ = biasNominal_ * juce::jmin(1.0f, preGain_); // start settled, no ramp-in after reset
 }
 
 void DriveBlock::setDrive(float pos) noexcept {
@@ -49,12 +49,14 @@ void DriveBlock::setHex(bool on) noexcept { hex_ = on; }
 void DriveBlock::setCurve(bool on) noexcept { curve_ = on; }
 
 void DriveBlock::setCharacter(float amount01, float chSign) noexcept {
-    character_ = juce::jlimit(0.0f, 1.0f, amount01);
-    // A small DC offset pushed into the shaper biases it off-center, generating
-    // 2nd-harmonic "growl". Opposite sign per channel de-correlates L/R. Ear-tuned.
-    // Sets the target only; processSample ramps bias_ toward it (anti-zipper).
+    const float amt = juce::jlimit(0.0f, 1.0f, amount01);
+    // A DC offset pushed into the shaper biases it off-center, generating 2nd-harmonic
+    // "growl". A shared in-phase base (0.85) keeps that even-harmonic warmth alive on a
+    // mono fold; a small opposite-sign trim (0.15) de-correlates L/R for width without the
+    // full antiphase cancellation a pure +/- bias would suffer. processSample scales this by
+    // drive and ramps bias_ toward it (anti-zipper).
     constexpr float kBiasMax = 0.28f;
-    biasTarget_ = chSign * kBiasMax * character_;
+    biasNominal_ = kBiasMax * amt * (0.85f + 0.15f * chSign);
 }
 
 float DriveBlock::masStage(float x) const noexcept {
@@ -64,7 +66,7 @@ float DriveBlock::masStage(float x) const noexcept {
         // even at high preGain, then the x^2 term biases the waveform asymmetrically
         // to generate 2nd harmonic content.
         const float xn = std::tanh(x * 0.25f);
-        return xn + 0.45f * (xn * xn);
+        return xn + 0.35f * (xn * xn);
     }
     if (mas_ == 2) {                      // 3rd-emphasis: odd cubic soft clip
         const float c = juce::jlimit(-1.0f, 1.0f, x);
@@ -84,11 +86,13 @@ float DriveBlock::hexStage(float x) noexcept {
 float DriveBlock::processSample(float x) noexcept {
     float y = x * preGain_;
     if (curve_) y = pre_.process(y);
-    // Class-A asymmetric bias: only meaningful when a shaper follows. Ramp bias_ toward its
-    // target every sample so Character sweeps don't step (which the DC blocker would turn
-    // into audible tearing). bias_ stays 0 when character is 0, so the stages-off identity
-    // path below is unchanged.
-    bias_ = biasCoeff_ * bias_ + (1.0f - biasCoeff_) * biasTarget_;
+    // Class-A asymmetric bias: only meaningful when a shaper follows. Scale by drive so the
+    // asymmetry tracks how hard the stage is pushed (capped at unity preGain so it doesn't
+    // run away in the red), then ramp bias_ toward that target every sample so Character
+    // sweeps don't step (which the DC blocker would turn into tearing). bias_ stays 0 when
+    // character is 0, so the stages-off identity path below is unchanged.
+    const float biasTarget = biasNominal_ * juce::jmin(1.0f, preGain_);
+    bias_ = biasCoeff_ * bias_ + (1.0f - biasCoeff_) * biasTarget;
     const bool stagesActive = (mas_ != 0) || sat_ || hex_;
     if (stagesActive) y += bias_;
     y = masStage(y);
