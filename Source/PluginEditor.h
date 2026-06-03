@@ -10,6 +10,7 @@
 #include "ui/panels/CompressorPanel.h"
 #include "ui/panels/DrivePanel.h"
 #include "ui/panels/MatrixPanel.h"
+#include "ui/PresetBar.h"
 
 namespace holdover {
 
@@ -33,10 +34,11 @@ private:
     // scales this component; it never repositions individual controls per pixel.
     class Content : public juce::Component {
     public:
-        explicit Content(juce::AudioProcessorValueTreeState&);
+        explicit Content(HoldoverProcessor&);
         void paint(juce::Graphics&) override;
         void resized() override;
         void updateMeters(float saturation, float gainReductionDb);
+        void syncPresetBar();
 
     private:
         InputPanel input_;
@@ -45,6 +47,7 @@ private:
         CompressorPanel comp_;
         DrivePanel drive_;
         MatrixPanel matrix_;
+        PresetBar presetBar_;
 
         LedMeter satMeter_ { "SATURATING" };
         LedMeter grMeter_  { "COMPRESSING" };
