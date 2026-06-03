@@ -35,7 +35,8 @@ target_sources(Holdover PRIVATE
     PluginProcessor.cpp
     PluginEditor.cpp
     ui/HoldoverLookAndFeel.cpp
-    ui/LedMeter.cpp)
+    ui/LedMeter.cpp
+    ui/PresetBar.cpp)
 
 target_compile_features(Holdover PRIVATE cxx_std_20)
 target_link_libraries(Holdover PRIVATE

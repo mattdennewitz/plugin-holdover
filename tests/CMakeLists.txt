@@ -32,6 +32,7 @@ add_executable(HoldoverEditorTests
     test_processor_presets.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginEditor.cpp
+    ${CMAKE_SOURCE_DIR}/Source/ui/PresetBar.cpp
     ${CMAKE_SOURCE_DIR}/Source/ui/HoldoverLookAndFeel.cpp
     ${CMAKE_SOURCE_DIR}/Source/ui/LedMeter.cpp)
 target_link_libraries(HoldoverEditorTests PRIVATE
