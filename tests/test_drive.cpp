@@ -64,20 +64,48 @@ TEST_CASE("Class-A bias adds 2nd-harmonic growl scaled by character", "[drive]")
     REQUIRE(colored > clean * 3.0f);
 }
 
-TEST_CASE("Class-A bias is opposite per channel (stereo de-correlation)", "[drive]") {
-    auto captureChannel = [](float chSign, std::vector<float>& out) {
-        holdover::DriveBlock d; d.prepare(kSr); d.reset();
-        d.setDrive(8.0f); d.setMas(0); d.setSat(true); d.setHex(false); d.setCurve(false);
-        d.setCharacter(1.0f, chSign);
-        const double w = 2.0 * juce::MathConstants<double>::pi * 1000.0 / kSr;
-        for (int n = 0; n < 2048; ++n)
-            out.push_back(d.processSample(0.5f * (float) std::sin(w * n)));
+TEST_CASE("Class-A bias de-correlates L/R yet survives a mono sum", "[drive]") {
+    // L/R use a shared in-phase bias base plus a small opposite-sign trim, so the channels
+    // differ (stereo width) but their even-harmonic content does NOT cancel when summed to
+    // mono. A pure +/- antiphase bias would pass the de-correlation check below but fail the
+    // mono-compatibility check.
+    auto makeChannel = [](float chSign) {
+        auto d = std::make_unique<holdover::DriveBlock>();
+        d->prepare(kSr); d->reset();
+        d->setDrive(8.0f); d->setMas(0); d->setSat(true); d->setHex(false); d->setCurve(false);
+        d->setCharacter(1.0f, chSign);
+        return d;
     };
-    std::vector<float> left, right;
-    captureChannel(+1.0f, left);
-    captureChannel(-1.0f, right);
+
+    // (a) de-correlation: per-sample L and R outputs are not identical.
+    auto dl = makeChannel(+1.0f), dr = makeChannel(-1.0f);
+    const double w = 2.0 * juce::MathConstants<double>::pi * 1000.0 / kSr;
     float maxDiff = 0.0f;
-    for (size_t i = 0; i < left.size(); ++i)
-        maxDiff = juce::jmax(maxDiff, std::abs(left[i] - right[i]));
-    REQUIRE(maxDiff > 1.0e-3f);
+    for (int n = 0; n < 2048; ++n) {
+        const float x = 0.5f * (float) std::sin(w * n);
+        maxDiff = juce::jmax(maxDiff, std::abs(dl->processSample(x) - dr->processSample(x)));
+    }
+    REQUIRE(maxDiff > 1.0e-4f);
+
+    // (b) mono compatibility: the 2nd harmonic of the (L+R)/2 mono sum is still present.
+    auto ml = makeChannel(+1.0f), mr = makeChannel(-1.0f);
+    auto h = test::harmonicMagnitudes(
+        [&](float x){ return 0.5f * (ml->processSample(x) + mr->processSample(x)); },
+        kSr, 1000.0f, 5);
+    REQUIRE(h[1] > h[0] * 0.02f);   // even-harmonic warmth survives the mono fold
+}
+
+TEST_CASE("Class-A bias asymmetry scales with drive", "[drive]") {
+    // Same Character, lower Drive => less signal (and bias) pushed into the shaper => less
+    // 2nd-harmonic growl. This is the Class-A trait: the asymmetry blooms as the stage is
+    // pushed, rather than sitting at a fixed level regardless of drive.
+    auto secondRatioAtDrive = [](float drivePos) {
+        holdover::DriveBlock d; d.prepare(kSr); d.reset();
+        d.setDrive(drivePos); d.setMas(0); d.setSat(true); d.setHex(false); d.setCurve(false);
+        d.setCharacter(1.0f, +1.0f);
+        auto h = test::harmonicMagnitudes([&](float x){ return d.processSample(x); },
+                                          kSr, 1000.0f, 5);
+        return h[1] / h[0];
+    };
+    REQUIRE(secondRatioAtDrive(8.0f) > secondRatioAtDrive(3.0f));
 }

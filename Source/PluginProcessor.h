@@ -3,6 +3,7 @@
 #include "Parameters.h"
 #include "dsp/ChannelStrip.h"
 #include "presets/FactoryPresets.h"
+#include "presets/PresetManager.h"
 
 namespace holdover {
 
@@ -36,13 +37,16 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    PresetManager& getPresetManager() { return presetManager; }
+    juce::String currentPresetName;     // persisted; set by the editor on load/save
+
     int uiWidth = 1020, uiHeight = 680;
 
     const MeterState& getMeters() const noexcept { return strip_.meters(); }
 
 private:
     ChannelStrip strip_;
-    int currentProgram_ = 0;
+    PresetManager presetManager { apvts };   // depends on apvts (declared earlier)
 
     juce::SmoothedValue<float> smGainL_, smGainR_, smInput_, smOutput_, smDrive_, smMakeup_,
         smThreshold_, smBehavior_, smDryEq_, smComp_, smSat_, smPresenceDb_, smBassDb_, smTrebleDb_,

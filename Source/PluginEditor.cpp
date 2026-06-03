@@ -6,13 +6,15 @@ namespace holdover {
 
 // ============================ Content =====================================
 
-HoldoverEditor::Content::Content(juce::AudioProcessorValueTreeState& apvts)
-    : input_(apvts), filter_(apvts), eq_(apvts),
-      comp_(apvts), drive_(apvts), matrix_(apvts) {
+HoldoverEditor::Content::Content(HoldoverProcessor& processor)
+    : input_(processor.apvts), filter_(processor.apvts), eq_(processor.apvts),
+      comp_(processor.apvts), drive_(processor.apvts), matrix_(processor.apvts),
+      presetBar_(processor) {
     for (auto* c : { (juce::Component*) &input_, (juce::Component*) &filter_,
                      (juce::Component*) &eq_, (juce::Component*) &comp_,
                      (juce::Component*) &drive_, (juce::Component*) &matrix_,
-                     (juce::Component*) &satMeter_, (juce::Component*) &grMeter_ })
+                     (juce::Component*) &satMeter_, (juce::Component*) &grMeter_,
+                     (juce::Component*) &presetBar_ })
         addAndMakeVisible(c);
 
     grReadout_.setJustificationType(juce::Justification::centred);
@@ -45,6 +47,11 @@ void HoldoverEditor::Content::resized() {
     auto area = getLocalBounds().reduced(12);
 
     headerArea_ = area.removeFromTop(kHeaderH).reduced(4, 0);
+    {
+        auto bar = headerArea_;
+        bar.removeFromLeft(kWordmarkW);          // reserve space for the HOLD OVER wordmark
+        presetBar_.setBounds(bar.withSizeKeepingCentre(bar.getWidth(), kChoiceBoxH));
+    }
     area.removeFromTop(kRowGap);
 
     // Left column | bridge | right column.
@@ -86,10 +93,14 @@ void HoldoverEditor::Content::updateMeters(float saturation, float gainReduction
     grReadout_.setText(juce::String(gainReductionDb, 1) + " dB", juce::dontSendNotification);
 }
 
+void HoldoverEditor::Content::syncPresetBar() {
+    presetBar_.syncSelection();
+}
+
 // ============================ Editor ======================================
 
 HoldoverEditor::HoldoverEditor(HoldoverProcessor& p)
-    : AudioProcessorEditor(&p), processor(p), content_(p.apvts) {
+    : AudioProcessorEditor(&p), processor(p), content_(p) {
     setLookAndFeel(&lnf_);
     addAndMakeVisible(content_);
 
@@ -140,6 +151,7 @@ void HoldoverEditor::resized() {
 void HoldoverEditor::timerCallback() {
     const auto& m = processor.getMeters();
     content_.updateMeters(m.saturation(), m.gainReductionDb());
+    content_.syncPresetBar();
 }
 
 } // namespace holdover

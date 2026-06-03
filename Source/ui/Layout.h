@@ -21,6 +21,7 @@ constexpr int kPanelPadBot  = 10;   // panel bottom padding
 constexpr int kPanelTitleH  = 22;   // panel title bar height
 constexpr int kHeaderH      = 36;   // top wordmark band
 constexpr int kBridgeW      = 96;   // meter bridge width
+constexpr int kWordmarkW    = 160;  // left reserve in the header for the HOLD OVER wordmark
 
 // Lay out `n` fixed-width (kCellW) cells left-to-right in `area`, separated by
 // kCellGap. Fixed width (not flex) is what makes a knob in INPUT identical to one in

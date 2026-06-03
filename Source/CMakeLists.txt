@@ -9,6 +9,7 @@ add_library(HoldoverDSP STATIC
     dsp/ChannelStrip.cpp
     # dsp/*.cpp added by later tasks
     presets/FactoryPresets.cpp
+    presets/PresetManager.cpp
 )
 target_include_directories(HoldoverDSP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(HoldoverDSP PUBLIC cxx_std_20)
@@ -34,7 +35,8 @@ target_sources(Holdover PRIVATE
     PluginProcessor.cpp
     PluginEditor.cpp
     ui/HoldoverLookAndFeel.cpp
-    ui/LedMeter.cpp)
+    ui/LedMeter.cpp
+    ui/PresetBar.cpp)
 
 target_compile_features(Holdover PRIVATE cxx_std_20)
 target_link_libraries(Holdover PRIVATE

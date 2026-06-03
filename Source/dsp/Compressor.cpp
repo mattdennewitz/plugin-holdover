@@ -11,11 +11,12 @@ static inline float softSat(float x, float drive) noexcept {
 }
 
 // Asymmetric, odd-dominant VCA waveshaper. `drive` grows with gain reduction, so the
-// signal gets thicker the harder the VCA clamps. The bias term adds a touch of 2nd to
-// the tanh's odd series for "bite"; subtracting tanh(b) keeps the output centered.
+// signal gets thicker the harder the VCA clamps. The tanh carries the odd (3rd-dominant)
+// "British bus" bite; a small bias adds just a hint of 2nd, kept low so the character
+// stays odd-leaning. Subtracting tanh(b) keeps the output centered.
 static inline float vcaSat(float x, float drive) noexcept {
     const float d = 1.0f + drive * 4.0f;
-    const float b = 0.08f * drive;
+    const float b = 0.05f * drive;
     return (std::tanh(d * x + b) - std::tanh(b)) / d;
 }
 

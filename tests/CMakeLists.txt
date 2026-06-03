@@ -17,6 +17,7 @@ add_executable(HoldoverTests
     test_output.cpp
     test_channelstrip.cpp
     test_presets.cpp
+    test_presetmanager.cpp
     test_hardening.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
@@ -28,8 +29,10 @@ catch_discover_tests(HoldoverTests)
 # --- Editor tests (need the GUI; kept separate from the headless DSP suite) ---
 add_executable(HoldoverEditorTests
     test_editor_size.cpp
+    test_processor_presets.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginEditor.cpp
+    ${CMAKE_SOURCE_DIR}/Source/ui/PresetBar.cpp
     ${CMAKE_SOURCE_DIR}/Source/ui/HoldoverLookAndFeel.cpp
     ${CMAKE_SOURCE_DIR}/Source/ui/LedMeter.cpp)
 target_link_libraries(HoldoverEditorTests PRIVATE
