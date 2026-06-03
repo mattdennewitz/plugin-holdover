@@ -60,14 +60,16 @@ const std::vector<Preset>& all() {
             {"satFeedLevel",10},{"satMute",0},{"compMute",1},{"dryEqMute",1},{"output",5} } },
 
         // Isolates Character's Comp-VCA-THD mechanism: masMode is OFF (Drive is identity)
-        // and SAT/HEX are off, so the compressor is the only harmonic source. The comp
-        // feed carries grDrive = Character x gainReduction. Sweep Character 0 -> 8 to hear
-        // clean glue turn into gritty "British bus" bite that tracks how hard it clamps.
+        // and SAT/HEX are off, so the compressor is the only harmonic source. Makeup sits at
+        // unity (no makeup saturation) and Output restores level, so Character is the ONLY
+        // harmonic variable: the comp feed carries grDrive = Character x gainReduction. Sweep
+        // Character 0 -> 8 to hear clean glue turn into gritty "British bus" bite that tracks
+        // how hard it clamps.
         { "Bus Glue Grit", {
             {"compEngage",1},{"threshold",-22},{"behavior",5},{"attack",1},{"release",2},
-            {"makeup",7},{"masMode",0},{"satEngage",0},{"hexEngage",0},{"character",8},
+            {"makeup",5},{"masMode",0},{"satEngage",0},{"hexEngage",0},{"character",8},
             {"eqEngage",0},{"filtEngage",0},
-            {"compFeedLevel",10},{"compMute",0},{"satMute",1},{"dryEqMute",1},{"output",5} } },
+            {"compFeedLevel",10},{"compMute",0},{"satMute",1},{"dryEqMute",1},{"output",8} } },
     };
     return bank;
 }
