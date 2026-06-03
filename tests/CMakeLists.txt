@@ -17,6 +17,7 @@ add_executable(HoldoverTests
     test_output.cpp
     test_channelstrip.cpp
     test_presets.cpp
+    test_presetmanager.cpp
     test_hardening.cpp)
 
 target_link_libraries(HoldoverTests PRIVATE HoldoverDSP Catch2::Catch2WithMain)
