@@ -11,7 +11,7 @@ const std::vector<Preset>& all() {
 
         { "Vocal Glue", {
             {"compEngage",1},{"threshold",-18},{"behavior",4},{"attack",1},{"release",1},
-            {"makeup",6},{"masMode",1},{"drive",6},{"satFeedLevel",10},{"compFeedLevel",6},
+            {"makeup",6},{"masMode",1},{"drive",6},{"character",6},{"satFeedLevel",10},{"compFeedLevel",6},
             {"compMute",0},{"scFilter",1},{"presenceDb",3},{"presenceFreq",4000} } },
 
         { "Drum Bus Bounce", {
@@ -21,7 +21,7 @@ const std::vector<Preset>& all() {
 
         { "Bass Saturator", {
             {"drive",8},{"masMode",2},{"satEngage",1},{"curve",1},{"satFeedLevel",10},
-            {"threshold",-12},{"behavior",3},{"compEngage",1},{"makeup",6} } },
+            {"threshold",-12},{"behavior",3},{"compEngage",1},{"makeup",6},{"character",7} } },
 
         { "Mix Bus Ceiling", {
             {"compEngage",1},{"threshold",-16},{"behavior",2},{"attack",2},{"release",1},
@@ -39,6 +39,35 @@ const std::vector<Preset>& all() {
         { "Filter Sweep", {
             {"filtEngage",1},{"lpfFreq",1200},{"lpfPeak",7},{"hpfFreq",120},{"hpfPeak",4},
             {"eqEngage",1},{"satFeedLevel",10},{"drive",5} } },
+
+        // Built to feature the Character macro at its most audible: moderate drive + MAS-2nd
+        // (where the Class-A bias bites) feeding heavy, fast compression (where the VCA THD
+        // blooms). Load it, then sweep Character 10 -> 0 to hear the analog coloration come
+        // and go. No SAT/HEX so the even-harmonic warmth isn't masked by hard clipping.
+        { "Character Showcase", {
+            {"compEngage",1},{"threshold",-26},{"behavior",9},{"attack",0},{"release",0},
+            {"makeup",7},{"drive",6},{"masMode",1},{"curve",1},{"character",10},
+            {"satEngage",0},{"hexEngage",0},{"eqEngage",0},{"filtEngage",0},
+            {"satFeedLevel",10},{"satMute",0},{"dryEqMute",1},{"compMute",1},{"output",5} } },
+
+        // Isolates Character's Drive-bias mechanism: the compressor is OFF and SAT/HEX
+        // are off, so the only thing coloring the audible (sat-feed = drive-output) path
+        // is the Character-biased MAS-2nd shaper. Sweep Character 0 -> 8 to hear pure
+        // even-harmonic "Class-A" warmth bloom. Useful on a DI, synth, or mix bus.
+        { "Console Warmth", {
+            {"compEngage",0},{"drive",5},{"masMode",1},{"curve",1},{"character",8},
+            {"satEngage",0},{"hexEngage",0},{"eqEngage",0},{"filtEngage",0},
+            {"satFeedLevel",10},{"satMute",0},{"compMute",1},{"dryEqMute",1},{"output",5} } },
+
+        // Isolates Character's Comp-VCA-THD mechanism: masMode is OFF (Drive is identity)
+        // and SAT/HEX are off, so the compressor is the only harmonic source. The comp
+        // feed carries grDrive = Character x gainReduction. Sweep Character 0 -> 8 to hear
+        // clean glue turn into gritty "British bus" bite that tracks how hard it clamps.
+        { "Bus Glue Grit", {
+            {"compEngage",1},{"threshold",-22},{"behavior",5},{"attack",1},{"release",2},
+            {"makeup",7},{"masMode",0},{"satEngage",0},{"hexEngage",0},{"character",8},
+            {"eqEngage",0},{"filtEngage",0},
+            {"compFeedLevel",10},{"compMute",0},{"satMute",1},{"dryEqMute",1},{"output",5} } },
     };
     return bank;
 }

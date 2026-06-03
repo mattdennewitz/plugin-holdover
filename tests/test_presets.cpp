@@ -3,7 +3,7 @@
 #include "Parameters.h"
 
 TEST_CASE("factory bank has the expected presets", "[presets]") {
-    REQUIRE(holdover::presets::all().size() == 8);
+    REQUIRE(holdover::presets::all().size() == 11);
 }
 
 TEST_CASE("every preset references only valid parameter IDs and finite values", "[presets]") {
