@@ -3,14 +3,43 @@ on: [push, pull_request]
 jobs:
   macos:
     runs-on: macos-14
+    env:
+      # CPM caches fetched dependency sources here so JUCE/Catch2 aren't re-cloned each run.
+      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
     steps:
       - uses: actions/checkout@v4
+
+      # Persist the CPM source cache (JUCE 8.0.4, Catch2) keyed on the files that pin versions.
+      - name: Cache CPM sources
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.cpm-cache
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            cpm-${{ runner.os }}-
+
+      # Install + manage ccache. JUCE source never changes, so after the first run its
+      # objects are cache hits and the build drops from ~30 min to a few minutes.
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-release
+          max-size: 750M
+
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_OBJC_COMPILER_LAUNCHER=ccache
+          -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
+
       - name: Build
         run: cmake --build build --config Release -j
+
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
       - name: pluginval
         run: |
           curl -sL "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip" -o pluginval.zip
