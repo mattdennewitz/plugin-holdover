@@ -62,6 +62,12 @@ void PresetManager::loadByName(const juce::String& name) {
     if (idx >= 0) loadByIndex(idx);
 }
 
+void PresetManager::setCurrentByName(const juce::String& name) {
+    const int idx = getAllNames().indexOf(name);
+    if (idx >= 0) currentIndex_ = idx;
+    markClean();   // the just-restored state is the new clean baseline
+}
+
 void PresetManager::next() { loadByIndex(currentIndex_ + 1); }
 void PresetManager::prev() { loadByIndex(currentIndex_ - 1); }
 

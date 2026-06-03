@@ -188,6 +188,7 @@ void HoldoverProcessor::setStateInformation(const void* data, int sizeInBytes) {
         uiWidth  = (int) ui.getProperty("width", uiWidth);
         uiHeight = (int) ui.getProperty("height", uiHeight);
         currentPresetName = ui.getProperty("preset", currentPresetName).toString();
+        presetManager.setCurrentByName(currentPresetName);
     }
 }
 

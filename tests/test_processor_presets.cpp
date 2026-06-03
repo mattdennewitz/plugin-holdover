@@ -34,3 +34,18 @@ TEST_CASE("currentPresetName round-trips through plugin state", "[processor]") {
     b.setStateInformation(mb.getData(), (int) mb.getSize());
     REQUIRE(b.currentPresetName == "Vocal Glue");
 }
+
+TEST_CASE("preset selection is restored on state reload", "[processor]") {
+    holdover::HoldoverProcessor a;
+    a.setCurrentProgram(3); // "Bass Saturator"
+
+    juce::MemoryBlock mb;
+    a.getStateInformation(mb);
+
+    holdover::HoldoverProcessor b;
+    b.setStateInformation(mb.getData(), (int) mb.getSize());
+
+    REQUIRE(b.currentPresetName == "Bass Saturator");
+    REQUIRE(b.getPresetManager().getCurrentIndex() == 3);
+    REQUIRE_FALSE(b.getPresetManager().isModified());
+}

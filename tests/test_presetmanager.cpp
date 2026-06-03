@@ -174,3 +174,35 @@ TEST_CASE("illegal and empty names are handled safely", "[presetmanager]") {
 
     dir.deleteRecursively();
 }
+
+TEST_CASE("setCurrentByName selects the index without re-applying parameters", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    // Simulate a restored project state: a distinctive param value that does NOT
+    // match factory preset 3 ("Bass Saturator", which sets drive=8).
+    setReal(sp.apvts, "drive", 1.0f);
+
+    pm.setCurrentByName("Bass Saturator"); // index 3
+    REQUIRE(pm.getCurrentIndex() == 3);
+    REQUIRE(pm.getCurrentName() == "Bass Saturator");
+    // It must NOT have loaded the preset — drive stays as the "restored" value.
+    REQUIRE(raw(sp.apvts, "drive") == Approx(1.0f));
+    // The restored state is the new clean baseline.
+    REQUIRE_FALSE(pm.isModified());
+
+    dir.deleteRecursively();
+}
+
+TEST_CASE("setCurrentByName with an unknown name leaves the index unchanged", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    pm.loadByIndex(2);
+    pm.setCurrentByName("No Such Preset");
+    REQUIRE(pm.getCurrentIndex() == 2);
+
+    dir.deleteRecursively();
+}

@@ -16,6 +16,10 @@ public:
     int  getNumFactory() const { return (int) presets::all().size(); }
     void loadByIndex(int index);
     void loadByName(const juce::String& name);
+    // Set the current selection to match `name` WITHOUT re-applying parameters,
+    // and re-snapshot the clean baseline. Used on state restore, where the
+    // parameters have already been loaded and only the index needs to catch up.
+    void setCurrentByName(const juce::String& name);
     void saveUser(const juce::String& name);      // writes <dir>/<legal-name>.preset, then selects it
     void next();
     void prev();
