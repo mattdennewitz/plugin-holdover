@@ -39,10 +39,11 @@ private:
     double sr_ = 48000.0;
     float preGain_ = 1.0f, outComp_ = 1.0f;
     int mas_ = 0; bool sat_ = false, hex_ = false, curve_ = true;
-    // bias_ drives the Class-A asymmetry (== 0 when character_ == 0). character_ is retained
-    // as the anchor for the deferred drive-dependent even/odd map (study §3); the shaper path
-    // reads only bias_ today.
-    float character_ = 0.0f, bias_ = 0.0f;
+    // Class-A asymmetry. biasTarget_ is the setpoint from setCharacter; bias_ is its
+    // per-sample-smoothed value (ramped in processSample so sweeping Character doesn't
+    // zipper through the shaper + DC blocker). character_ is retained as the anchor for the
+    // deferred drive-dependent even/odd map (study §3); the shaper path reads only bias_.
+    float character_ = 0.0f, biasTarget_ = 0.0f, bias_ = 0.0f, biasCoeff_ = 0.0f;
     Shelf pre_, de_;
     float dcX1_ = 0.0f, dcY1_ = 0.0f;
 };

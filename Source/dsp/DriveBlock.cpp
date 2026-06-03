@@ -28,11 +28,15 @@ void DriveBlock::prepare(double sampleRate) noexcept {
     sr_ = sampleRate;
     pre_ = makeEmphasis(sr_, 6.0f, 1500.0f);
     de_  = invert(pre_);
+    // ~5 ms one-pole smoothing for the bias so Character sweeps don't zipper. sr_ is the
+    // oversampled rate, so the time constant is in oversampled samples.
+    biasCoeff_ = std::exp(-1.0f / (0.005f * (float) sr_));
     reset();
 }
 
 void DriveBlock::reset() noexcept {
     pre_.reset(); de_.reset(); dcX1_ = dcY1_ = 0.0f;
+    bias_ = biasTarget_; // start settled, no ramp-in after reset
 }
 
 void DriveBlock::setDrive(float pos) noexcept {
@@ -48,8 +52,9 @@ void DriveBlock::setCharacter(float amount01, float chSign) noexcept {
     character_ = juce::jlimit(0.0f, 1.0f, amount01);
     // A small DC offset pushed into the shaper biases it off-center, generating
     // 2nd-harmonic "growl". Opposite sign per channel de-correlates L/R. Ear-tuned.
-    constexpr float kBiasMax = 0.1f;
-    bias_ = chSign * kBiasMax * character_;
+    // Sets the target only; processSample ramps bias_ toward it (anti-zipper).
+    constexpr float kBiasMax = 0.28f;
+    biasTarget_ = chSign * kBiasMax * character_;
 }
 
 float DriveBlock::masStage(float x) const noexcept {
@@ -79,8 +84,11 @@ float DriveBlock::hexStage(float x) noexcept {
 float DriveBlock::processSample(float x) noexcept {
     float y = x * preGain_;
     if (curve_) y = pre_.process(y);
-    // Class-A asymmetric bias: only meaningful when a shaper follows. bias_ is 0 when
-    // character is 0, so the stages-off identity path below is unchanged.
+    // Class-A asymmetric bias: only meaningful when a shaper follows. Ramp bias_ toward its
+    // target every sample so Character sweeps don't step (which the DC blocker would turn
+    // into audible tearing). bias_ stays 0 when character is 0, so the stages-off identity
+    // path below is unchanged.
+    bias_ = biasCoeff_ * bias_ + (1.0f - biasCoeff_) * biasTarget_;
     const bool stagesActive = (mas_ != 0) || sat_ || hex_;
     if (stagesActive) y += bias_;
     y = masStage(y);
