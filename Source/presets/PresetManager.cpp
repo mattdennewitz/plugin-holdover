@@ -77,7 +77,14 @@ bool PresetManager::isModified() const {
     return ! apvts_.copyState().isEquivalentTo(referenceState_);
 }
 
-// saveUser() is implemented in Task 2.
-void PresetManager::saveUser(const juce::String&) {}
+void PresetManager::saveUser(const juce::String& name) {
+    // Sanitize so a name with path separators / ".." can't write outside the dir.
+    const juce::String safe = juce::File::createLegalFileName(name);
+    if (safe.isEmpty()) return;
+    const auto f = dir_.getChildFile(safe + ".preset");
+    if (auto xml = apvts_.copyState().createXml())
+        xml->writeTo(f, {});
+    loadByName(safe);   // re-scan, select the just-saved preset, and markClean()
+}
 
 } // namespace holdover

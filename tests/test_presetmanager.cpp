@@ -96,3 +96,81 @@ TEST_CASE("next and prev clamp at the ends", "[presetmanager]") {
 
     dir.deleteRecursively();
 }
+
+TEST_CASE("saveUser writes a .preset file and selects it", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    pm.saveUser("My Sound");
+    REQUIRE(dir.getChildFile("My Sound.preset").existsAsFile());
+    REQUIRE(pm.getAllNames().contains("My Sound"));
+    REQUIRE(pm.getCurrentName() == "My Sound");
+    REQUIRE_FALSE(pm.isModified());
+
+    dir.deleteRecursively();
+}
+
+TEST_CASE("user preset round-trips snapped bool and choice params", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    // A distinctive mix including a bool (compMute) and a choice (masMode).
+    setReal(sp.apvts, "character", 7.0f);
+    sp.apvts.getParameter("compMute")->setValueNotifyingHost(0.0f); // false
+    sp.apvts.getParameter("masMode")->setValueNotifyingHost(1.0f);  // last option
+    const float c    = raw(sp.apvts, "character");
+    const float mute = raw(sp.apvts, "compMute");
+    const float mas  = raw(sp.apvts, "masMode");
+
+    pm.saveUser("Round");
+
+    // Disturb each value explicitly (don't rely on a factory preset touching them).
+    setReal(sp.apvts, "character", 0.0f);
+    sp.apvts.getParameter("compMute")->setValueNotifyingHost(1.0f); // true
+    sp.apvts.getParameter("masMode")->setValueNotifyingHost(0.0f);  // first option
+    REQUIRE(raw(sp.apvts, "character") == Approx(0.0f));
+
+    pm.loadByName("Round");         // recall via the user-file force-apply path
+    REQUIRE(raw(sp.apvts, "character") == Approx(c));
+    REQUIRE(raw(sp.apvts, "compMute")  == Approx(mute));
+    REQUIRE(raw(sp.apvts, "masMode")   == Approx(mas));
+
+    dir.deleteRecursively();
+}
+
+TEST_CASE("saving the same name overwrites in place", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    setReal(sp.apvts, "character", 2.0f);
+    pm.saveUser("Dup");
+    setReal(sp.apvts, "character", 9.0f);
+    pm.saveUser("Dup");
+
+    REQUIRE(dir.findChildFiles(juce::File::findFiles, false, "Dup.preset").size() == 1);
+
+    setReal(sp.apvts, "character", 0.0f);   // disturb, then prove the file holds 9
+    pm.loadByName("Dup");
+    REQUIRE(raw(sp.apvts, "character") == Approx(9.0f));
+
+    dir.deleteRecursively();
+}
+
+TEST_CASE("illegal and empty names are handled safely", "[presetmanager]") {
+    StubProcessor sp;
+    auto dir = freshDir();
+    holdover::PresetManager pm(sp.apvts, dir);
+
+    pm.saveUser("");                // nothing written
+    REQUIRE(dir.findChildFiles(juce::File::findFiles, false, "*.preset").isEmpty());
+
+    pm.saveUser("a/b");             // legalized, stays inside dir
+    const auto legal = juce::File::createLegalFileName("a/b");
+    REQUIRE(dir.getChildFile(legal + ".preset").existsAsFile());
+    REQUIRE(pm.getAllNames().contains(legal));
+
+    dir.deleteRecursively();
+}
