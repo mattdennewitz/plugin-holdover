@@ -29,6 +29,7 @@ catch_discover_tests(HoldoverTests)
 # --- Editor tests (need the GUI; kept separate from the headless DSP suite) ---
 add_executable(HoldoverEditorTests
     test_editor_size.cpp
+    test_processor_presets.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginProcessor.cpp
     ${CMAKE_SOURCE_DIR}/Source/PluginEditor.cpp
     ${CMAKE_SOURCE_DIR}/Source/ui/HoldoverLookAndFeel.cpp

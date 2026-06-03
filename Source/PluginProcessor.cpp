@@ -8,7 +8,9 @@ HoldoverProcessor::HoldoverProcessor()
         .withInput("Input",      juce::AudioChannelSet::stereo(), true)
         .withOutput("Output",    juce::AudioChannelSet::stereo(), true)
         .withInput("Sidechain",  juce::AudioChannelSet::stereo(), false)),
-      apvts(*this, nullptr, "Parameters", params::createLayout()) {}
+      apvts(*this, nullptr, "Parameters", params::createLayout()) {
+    currentPresetName = presetManager.getCurrentName();   // "Init / Flat" on first launch
+}
 
 void HoldoverProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     const int numCh = juce::jmax(1, getMainBusNumInputChannels());
@@ -125,14 +127,17 @@ juce::AudioProcessorEditor* HoldoverProcessor::createEditor() {
     return new HoldoverEditor(*this);
 }
 
-int HoldoverProcessor::getNumPrograms() { return (int) presets::all().size(); }
-int HoldoverProcessor::getCurrentProgram() { return currentProgram_; }
+int HoldoverProcessor::getNumPrograms() { return presetManager.getNumFactory(); }
+
+int HoldoverProcessor::getCurrentProgram() {
+    // The host menu is factory-only; a loaded user preset reports as the clamped
+    // factory index.
+    return juce::jlimit(0, getNumPrograms() - 1, presetManager.getCurrentIndex());
+}
 
 void HoldoverProcessor::setCurrentProgram(int index) {
-    index = juce::jlimit(0, getNumPrograms() - 1, index);
-    if (index == currentProgram_) return;
-    currentProgram_ = index;
-    presets::apply(apvts, currentProgram_);
+    presetManager.loadByIndex(index);
+    currentPresetName = presetManager.getCurrentName();
 }
 
 const juce::String HoldoverProcessor::getProgramName(int index) {
@@ -147,6 +152,7 @@ void HoldoverProcessor::getStateInformation(juce::MemoryBlock& destData) {
     juce::ValueTree ui("UI");
     ui.setProperty("width", uiWidth, nullptr);
     ui.setProperty("height", uiHeight, nullptr);
+    ui.setProperty("preset", currentPresetName, nullptr);
     root.appendChild(ui, nullptr);
     if (auto xml = root.createXml())
         copyXmlToBinary(*xml, destData);
@@ -181,6 +187,7 @@ void HoldoverProcessor::setStateInformation(const void* data, int sizeInBytes) {
     if (ui.isValid()) {
         uiWidth  = (int) ui.getProperty("width", uiWidth);
         uiHeight = (int) ui.getProperty("height", uiHeight);
+        currentPresetName = ui.getProperty("preset", currentPresetName).toString();
     }
 }
 
